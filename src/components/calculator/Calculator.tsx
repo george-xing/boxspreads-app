@@ -77,7 +77,8 @@ export function Calculator() {
 
   const expiry = findNearestExpiry(tenor, new Date());
   const tenorDte = calcDte(expiry);
-  const dte = dteOverride !== null && dteOverride > 0 ? dteOverride : tenorDte;
+  // DTE override only applies to the From Quotes tab
+  const quoteDte = dteOverride !== null && dteOverride > 0 ? dteOverride : tenorDte;
 
   // Tax calculation (shared)
   const ltcg = federalTaxRate <= 0.24 ? 0.15 : LTCG_RATE_FEDERAL;
@@ -96,15 +97,23 @@ export function Calculator() {
 
   // From Quotes tab result
   const hasQuotes = bidPrice !== null && askPrice !== null && strikeWidth !== null;
+  const quoteWarning = hasQuotes
+    ? bidPrice! > askPrice!
+      ? "Bid is higher than ask — check your quotes"
+      : (bidPrice! + askPrice!) / 2 >= strikeWidth!
+        ? "Mid price exceeds strike width — rate would be negative"
+        : null
+    : null;
   const quotesResult = useMemo(() => {
     if (!hasQuotes) return null;
     const midpoint = (bidPrice! + askPrice!) / 2;
-    const impliedRate = calcBoxRateFromQuotes(midpoint, strikeWidth!, dte);
-    const feeImpact = calcFeeImpact(FEES, 1, amount, dte);
+    if (midpoint >= strikeWidth!) return null; // would produce negative rate
+    const impliedRate = calcBoxRateFromQuotes(midpoint, strikeWidth!, quoteDte);
+    const feeImpact = calcFeeImpact(FEES, 1, amount, quoteDte);
     const allInRate = calcAllInRate(impliedRate, feeImpact);
     const afterTaxRate = calcAfterTaxRate(allInRate, blendedTax);
     return { midpoint, impliedRate, allInRate, afterTaxRate, feeImpact };
-  }, [bidPrice, askPrice, strikeWidth, dte, amount, blendedTax, hasQuotes]);
+  }, [bidPrice, askPrice, strikeWidth, quoteDte, amount, blendedTax, hasQuotes]);
 
   // Maturity curve data (for Estimate tab)
   const curveData = useMemo(() => {
@@ -119,8 +128,10 @@ export function Calculator() {
     });
   }, [treasuryRates, amount]);
 
-  // Active result for the CTA link
+  // Active result for the CTA link — only use quotes result when on quotes tab AND quotes are valid
   const activeResult = tab === "from-quotes" && quotesResult ? quotesResult : estimateResult;
+  const ctaDte = tab === "from-quotes" ? quoteDte : tenorDte;
+  const ctaDisabled = tab === "from-quotes" && !quotesResult;
 
   return (
     <div className="space-y-5">
@@ -179,6 +190,11 @@ export function Calculator() {
               onStrikeWidthChange={setStrikeWidth}
               onDteOverrideChange={setDteOverride}
             />
+            {quoteWarning && (
+              <div className="rounded-lg border border-yellow-800 bg-yellow-900/10 px-3 py-2 text-xs text-yellow-500">
+                {quoteWarning}
+              </div>
+            )}
             {quotesResult ? (
               <>
                 <RateResult
@@ -195,7 +211,7 @@ export function Calculator() {
                   mode="quotes"
                   midPrice={quotesResult.midpoint}
                   strikeWidth={strikeWidth!}
-                  dte={dte}
+                  dte={quoteDte}
                   impliedRate={quotesResult.impliedRate}
                   feeImpact={quotesResult.feeImpact}
                   allInRate={quotesResult.allInRate}
@@ -211,14 +227,22 @@ export function Calculator() {
       </div>
 
       <div className="text-center">
-        <Link
-          href={`/order?amount=${amount}&tenor=${tenor}&rate=${activeResult.impliedRate}&dte=${dte}`}
-          className="inline-block rounded-xl bg-green-500 px-8 py-3.5 text-base font-semibold text-gray-950 transition-colors hover:bg-green-400"
-        >
-          Build My Order →
-        </Link>
+        {ctaDisabled ? (
+          <span className="inline-block rounded-xl bg-gray-700 px-8 py-3.5 text-base font-semibold text-gray-500 cursor-not-allowed">
+            Build My Order →
+          </span>
+        ) : (
+          <Link
+            href={`/order?amount=${amount}&tenor=${tenor}&rate=${activeResult.impliedRate}&dte=${ctaDte}`}
+            className="inline-block rounded-xl bg-green-500 px-8 py-3.5 text-base font-semibold text-gray-950 transition-colors hover:bg-green-400"
+          >
+            Build My Order →
+          </Link>
+        )}
         <p className="mt-2 text-xs text-gray-600">
-          Choose your brokerage &amp; get step-by-step instructions
+          {ctaDisabled
+            ? "Enter quotes above to build your order"
+            : "Choose your brokerage & get step-by-step instructions"}
         </p>
       </div>
     </div>
