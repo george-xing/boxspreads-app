@@ -27,9 +27,7 @@ export interface RateResult {
   allInRate: number;
 }
 
-export interface TreasuryRates {
-  [tenor: string]: number; // e.g. { "1Y": 0.0382 }
-}
+export type TreasuryRates = Partial<Record<Tenor, number>>;
 
 export interface BrokerageFees {
   commission: number; // per contract per leg

@@ -17,7 +17,7 @@ function IbkrGuide({ expiry, limitPrice }: { expiry: string; limitPrice: number 
       {[
         { step: 1, title: "Open Spread Trader in TWS", desc: `Go to Trading Tools → Spread Trader. Select SPX as the underlying. This is NOT the same as regular order entry — Spread Trader handles multi-leg combos correctly.` },
         { step: 2, title: "Select the expiration", desc: `Choose ${expiryLabel} (SPX). Make sure you select SPX (European, AM-settled), NOT SPXW (weekly). European settlement means your box can only be exercised at expiry.` },
-        { step: 3, title: "Build the combo: enter all 4 legs", desc: "Add each leg exactly as shown in the table above. Enter them in sequence: Buy Call (lower), Sell Call (upper), Sell Put (lower), Buy Put (upper)." },
+        { step: 3, title: "Build the combo: enter all 4 legs", desc: "Add each leg exactly as shown in the table above. Enter them in sequence: Sell Call (lower), Buy Call (upper), Buy Put (lower), Sell Put (upper). This is a short box — you receive credit." },
         { step: 4, title: "Set the limit price", desc: `Enter $${limitPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })} as the limit price for the combo. Order type: LMT. Time in force: GTC (Good 'Til Cancelled).` },
         { step: 5, title: "Preview and submit", desc: "Click Preview Order. Verify the margin impact shows a small increase (not the full notional). Then submit." },
       ].map(({ step, title, desc }) => (

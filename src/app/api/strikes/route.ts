@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { selectStrikes, findNearestExpiry, calcSpreadWidth } from "@/lib/strikes";
+import { selectStrikes, findNearestExpiry } from "@/lib/strikes";
 import type { Tenor } from "@/lib/types";
 import { TENORS } from "@/lib/constants";
 
@@ -20,7 +20,7 @@ export async function GET(request: Request) {
   const contracts = 1;
   const { lower, upper } = selectStrikes(amount, contracts, CURRENT_SPX);
   const expiry = findNearestExpiry(tenor, new Date());
-  const width = calcSpreadWidth(amount, contracts);
+  const width = upper - lower; // actual strike width, not theoretical
 
   return NextResponse.json({
     lower,

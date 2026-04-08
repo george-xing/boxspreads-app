@@ -9,7 +9,7 @@ import { OrderParams } from "@/components/order/OrderParams";
 import { FeeBreakdown } from "@/components/order/FeeBreakdown";
 import { PreSubmitChecklist } from "@/components/order/PreSubmitChecklist";
 import { BrokerageGuide } from "@/components/order/BrokerageGuide";
-import { selectStrikes, findNearestExpiry, buildBoxLegs, calcSpreadWidth, calcDte } from "@/lib/strikes";
+import { selectStrikes, findNearestExpiry, buildBoxLegs, calcDte } from "@/lib/strikes";
 import { BROKERAGE_FEES, BROKERAGES, TENORS } from "@/lib/constants";
 import type { Brokerage, Tenor } from "@/lib/types";
 
@@ -41,20 +41,24 @@ function OrderContent() {
   const rawRate = Number(searchParams.get("rate"));
   const rate = rawRate > 0 && rawRate < 1 && isFinite(rawRate) ? rawRate : 0.0412;
 
+  const rawDte = Number(searchParams.get("dte"));
+  const dteParam = rawDte > 0 && rawDte < 3650 && isFinite(rawDte) ? rawDte : null;
+
   const order = useMemo(() => {
     const contracts = 1;
     const { lower, upper } = selectStrikes(amount, contracts, CURRENT_SPX);
     const expiry = findNearestExpiry(tenor, new Date());
     const legs = buildBoxLegs(lower, upper, expiry);
-    const spreadWidth = calcSpreadWidth(amount, contracts);
+    // Use actual strike width (upper - lower), not theoretical width from borrow amount
+    const spreadWidth = upper - lower;
 
-    // Use actual DTE from expiry date
-    const dte = calcDte(expiry);
+    // Use DTE from calculator if provided, otherwise compute from expiry
+    const dte = dteParam ?? calcDte(expiry);
     // Limit price: what you receive per share for the short box
     const limitPrice = spreadWidth / (1 + rate * (dte / 365));
 
     return { legs, expiry, spreadWidth, limitPrice, contracts, dte };
-  }, [amount, tenor, rate]);
+  }, [amount, tenor, rate, dteParam]);
 
   const fees = BROKERAGE_FEES[brokerage];
 
@@ -67,7 +71,7 @@ function OrderContent() {
         </p>
       </div>
 
-      <OrderSummary amount={amount} tenor={tenor} rate={rate} brokerage={brokerage} />
+      <OrderSummary amount={order.spreadWidth * 100} tenor={tenor} rate={rate} brokerage={brokerage} />
 
       <div>
         <h3 className="mb-3 text-sm font-semibold text-white">
@@ -78,9 +82,9 @@ function OrderContent() {
         <div className="mt-3 rounded-lg border border-blue-800 bg-blue-900/10 p-3">
           <p className="text-xs text-blue-400">
             <strong>Why these strikes?</strong> Spread width of $
-            {order.spreadWidth.toLocaleString()} x 100 multiplier = $
-            {amount.toLocaleString()} notional. Strikes selected near current SPX
-            level for liquidity.
+            {order.spreadWidth.toLocaleString()} x 100 multiplier ={" "}
+            ${(order.spreadWidth * 100).toLocaleString()} notional. Strikes
+            based on SPX ~{CURRENT_SPX.toLocaleString()} reference level.
           </p>
         </div>
       </div>
@@ -91,7 +95,7 @@ function OrderContent() {
         contracts={order.contracts}
       />
 
-      <FeeBreakdown fees={fees} contracts={order.contracts} borrowAmount={amount} dte={order.dte} />
+      <FeeBreakdown fees={fees} contracts={order.contracts} borrowAmount={order.spreadWidth * 100} dte={order.dte} />
 
       <BrokerageGuide
         brokerage={brokerage}

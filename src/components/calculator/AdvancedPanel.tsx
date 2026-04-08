@@ -6,12 +6,14 @@ interface AdvancedPanelProps {
   bidPrice: number | null;
   askPrice: number | null;
   strikeWidth: number | null;
+  dteOverride: number | null;
   federalTaxRate: number;
   stateTaxRate: number;
   spreadBps: number;
   onBidChange: (v: number | null) => void;
   onAskChange: (v: number | null) => void;
   onStrikeWidthChange: (v: number | null) => void;
+  onDteOverrideChange: (v: number | null) => void;
   onFederalTaxChange: (v: number) => void;
   onStateTaxChange: (v: number) => void;
   onSpreadBpsChange: (v: number) => void;
@@ -84,7 +86,7 @@ export function AdvancedPanel(props: AdvancedPanelProps) {
             <div className="mb-2 text-xs uppercase tracking-widest text-gray-500">
               Option chain quote (override Treasury model)
             </div>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-3">
               <NumericField
                 label="Bid price"
                 value={props.bidPrice?.toString() ?? ""}
@@ -106,6 +108,14 @@ export function AdvancedPanel(props: AdvancedPanelProps) {
                   props.onStrikeWidthChange(v ? parseFloat(v) || null : null)
                 }
                 suffix="$"
+              />
+              <NumericField
+                label="Days to expiry"
+                value={props.dteOverride?.toString() ?? ""}
+                onChange={(v) =>
+                  props.onDteOverrideChange(v ? parseInt(v) || null : null)
+                }
+                suffix="DTE"
               />
             </div>
             <div className="mt-1 text-xs text-gray-700">
@@ -142,7 +152,10 @@ export function AdvancedPanel(props: AdvancedPanelProps) {
             label="Rate spread over Treasury"
             hint="Default 30bps. Lower = more aggressive limit, slower fill."
             value={props.spreadBps.toString()}
-            onChange={(v) => props.onSpreadBpsChange(parseInt(v) || 30)}
+            onChange={(v) => {
+              const parsed = parseInt(v);
+              props.onSpreadBpsChange(isNaN(parsed) ? 30 : parsed);
+            }}
             suffix="bps"
           />
         </div>

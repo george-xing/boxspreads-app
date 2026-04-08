@@ -12,12 +12,14 @@ export function calcBoxRateSimple(
 
 /**
  * Advanced mode: implied rate from actual box spread price.
+ * Returns 0 for invalid inputs to prevent Infinity/NaN.
  */
 export function calcBoxRateFromQuotes(
   boxPrice: number,
   strikeWidth: number,
   dte: number
 ): number {
+  if (boxPrice <= 0 || strikeWidth <= 0 || dte <= 0) return 0;
   return ((strikeWidth - boxPrice) / boxPrice) * (365 / dte);
 }
 

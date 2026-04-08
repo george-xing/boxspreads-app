@@ -11,36 +11,51 @@ async function fetchFromFred(
   const apiKey = process.env.FRED_API_KEY;
   if (!apiKey) return null;
 
-  const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=1`;
+  const url = `${FRED_BASE_URL}?series_id=${seriesId}&api_key=${apiKey}&file_type=json&sort_order=desc&limit=5`;
   const res = await fetch(url, { next: { revalidate: 3600 } });
   if (!res.ok) return null;
 
   const data = await res.json();
-  const value = data.observations?.[0]?.value;
-  if (!value || value === ".") return null;
-  return parseFloat(value) / 100;
+  // Walk back past holiday/weekend "." entries to find the most recent real value
+  for (const obs of data.observations ?? []) {
+    if (obs.value && obs.value !== ".") {
+      return parseFloat(obs.value) / 100;
+    }
+  }
+  return null;
 }
 
 async function getLatestRates(): Promise<{ rates: Record<string, number>; source: "cache" | "fred" | "empty" }> {
-  // Try cache first
-  const { data: cached, error: cacheError } = await supabase
+  // Try cache first — get the latest date's rows only
+  const { data: latestDate } = await supabase
     .from("treasury_rates")
-    .select("tenor, yield_pct, fetched_at")
+    .select("date")
     .order("date", { ascending: false })
-    .limit(9);
+    .limit(1);
 
-  if (!cacheError && cached && cached.length > 0) {
-    const now = new Date();
-    const cacheValid =
-      now.getTime() - new Date(cached[0].fetched_at).getTime() <
-      CACHE_MAX_AGE_HOURS * 3600 * 1000;
+  if (latestDate && latestDate.length > 0) {
+    const { data: cached, error: cacheError } = await supabase
+      .from("treasury_rates")
+      .select("tenor, yield_pct, fetched_at")
+      .eq("date", latestDate[0].date);
 
-    if (cacheValid) {
-      const rates: Record<string, number> = {};
-      for (const row of cached) {
-        rates[row.tenor] = Number(row.yield_pct) / 100;
+    if (!cacheError && cached && cached.length > 0) {
+      const now = new Date();
+      const oldestFetch = cached.reduce((oldest, row) =>
+        new Date(row.fetched_at) < oldest ? new Date(row.fetched_at) : oldest,
+        new Date(cached[0].fetched_at)
+      );
+      const cacheValid =
+        now.getTime() - oldestFetch.getTime() <
+        CACHE_MAX_AGE_HOURS * 3600 * 1000;
+
+      if (cacheValid) {
+        const rates: Record<string, number> = {};
+        for (const row of cached) {
+          rates[row.tenor] = Number(row.yield_pct) / 100;
+        }
+        return { rates, source: "cache" };
       }
-      return { rates, source: "cache" };
     }
   }
 

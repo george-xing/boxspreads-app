@@ -38,9 +38,16 @@ describe("selectStrikes", () => {
 });
 
 describe("findNearestExpiry", () => {
-  it("finds the third Friday of the target month", () => {
+  it("finds 1Y expiry (actual anniversary month)", () => {
+    // 1Y from April 2026 → April 2027. Third Friday of April 2027 = Apr 16
     const expiry = findNearestExpiry("1Y", new Date("2026-04-07"));
-    expect(expiry).toBe("2026-12-18");
+    expect(expiry).toBe("2027-04-16");
+  });
+
+  it("finds 2Y expiry", () => {
+    // 2Y from April 2026 → April 2028. Third Friday of April 2028 = Apr 21
+    const expiry = findNearestExpiry("2Y", new Date("2026-04-07"));
+    expect(expiry).toBe("2028-04-21");
   });
 
   it("finds 6M expiry", () => {
@@ -51,6 +58,12 @@ describe("findNearestExpiry", () => {
   it("finds 3M expiry", () => {
     const expiry = findNearestExpiry("3M", new Date("2026-04-07"));
     expect(expiry).toBe("2026-07-17");
+  });
+
+  it("handles month-end dates without rollover", () => {
+    // Aug 31 + 6M should target February, not March
+    const expiry = findNearestExpiry("6M", new Date("2026-08-31"));
+    expect(expiry).toBe("2027-02-19"); // Third Friday of Feb 2027
   });
 });
 

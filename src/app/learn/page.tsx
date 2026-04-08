@@ -38,10 +38,10 @@ export default function LearnPage() {
           This is economically identical to a zero-coupon loan.
         </p>
         <p>
-          The four legs: buy a call and sell a put at the lower strike (synthetic
-          long), sell a call and buy a put at the upper strike (synthetic short).
-          The payoff at expiry is always equal to the difference between the
-          strikes x 100, no matter what.
+          To borrow (short box): sell a call and buy a put at the lower strike,
+          buy a call and sell a put at the upper strike. You receive a net credit
+          today and owe the strike difference x 100 at expiry — no matter what
+          happens to the market.
         </p>
       </Section>
 

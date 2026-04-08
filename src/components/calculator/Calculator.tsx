@@ -35,6 +35,7 @@ export function Calculator() {
   const [bidPrice, setBidPrice] = useState<number | null>(null);
   const [askPrice, setAskPrice] = useState<number | null>(null);
   const [strikeWidth, setStrikeWidth] = useState<number | null>(null);
+  const [dteOverride, setDteOverride] = useState<number | null>(null);
   const [federalTaxRate, setFederalTaxRate] = useState(DEFAULT_FEDERAL_TAX_RATE);
   const [stateTaxRate, setStateTaxRate] = useState(DEFAULT_STATE_TAX_RATE);
   const [treasuryRates, setTreasuryRates] = useState<TreasuryRates>({});
@@ -58,17 +59,23 @@ export function Calculator() {
 
   // Use actual DTE from the expiry date, not an approximation
   const expiry = findNearestExpiry(tenor, new Date());
-  const dte = calcDte(expiry);
+  const tenorDte = calcDte(expiry);
+
+  const useAdvanced =
+    bidPrice !== null && askPrice !== null && strikeWidth !== null;
+
+  // In advanced mode, use DTE override if provided (matches the quote's expiry)
+  const dte = useAdvanced && dteOverride !== null && dteOverride > 0
+    ? dteOverride
+    : tenorDte;
 
   const result = useMemo(() => {
     const fees = BROKERAGE_FEES[brokerage];
-    const useAdvanced =
-      bidPrice !== null && askPrice !== null && strikeWidth !== null;
 
     let impliedRate: number;
     if (useAdvanced) {
-      const midpoint = (bidPrice + askPrice) / 2;
-      impliedRate = calcBoxRateFromQuotes(midpoint, strikeWidth, dte);
+      const midpoint = (bidPrice! + askPrice!) / 2;
+      impliedRate = calcBoxRateFromQuotes(midpoint, strikeWidth!, dte);
     } else {
       const treasuryYield = treasuryRates[tenor] ?? 0.04;
       impliedRate = calcBoxRateSimple(treasuryYield, spreadBps);
@@ -95,14 +102,13 @@ export function Calculator() {
     stateTaxRate,
     treasuryRates,
     dte,
+    useAdvanced,
   ]);
 
-  const useAdvanced =
-    bidPrice !== null && askPrice !== null && strikeWidth !== null;
   const treasuryYield = treasuryRates[tenor];
 
   const methodology = useAdvanced
-    ? `From market quotes: mid ${((bidPrice! + askPrice!) / 2).toFixed(2)} on $${strikeWidth!.toLocaleString()} width · Fee-inclusive`
+    ? `From market quotes: mid ${((bidPrice! + askPrice!) / 2).toFixed(2)} on $${strikeWidth!.toLocaleString()} width · ${dte} DTE · Fee-inclusive`
     : treasuryYield
       ? `Based on ${tenor} Treasury (${(treasuryYield * 100).toFixed(2)}%) + ${spreadBps}bps spread · ${dte} DTE · Fee-inclusive`
       : ratesError
@@ -130,12 +136,14 @@ export function Calculator() {
           bidPrice={bidPrice}
           askPrice={askPrice}
           strikeWidth={strikeWidth}
+          dteOverride={dteOverride}
           federalTaxRate={federalTaxRate}
           stateTaxRate={stateTaxRate}
           spreadBps={spreadBps}
           onBidChange={setBidPrice}
           onAskChange={setAskPrice}
           onStrikeWidthChange={setStrikeWidth}
+          onDteOverrideChange={setDteOverride}
           onFederalTaxChange={setFederalTaxRate}
           onStateTaxChange={setStateTaxRate}
           onSpreadBpsChange={setSpreadBps}
@@ -156,7 +164,7 @@ export function Calculator() {
 
       <div className="text-center">
         <Link
-          href={`/order?amount=${amount}&tenor=${tenor}&brokerage=${brokerage}&rate=${result.impliedRate}`}
+          href={`/order?amount=${amount}&tenor=${tenor}&brokerage=${brokerage}&rate=${result.impliedRate}&dte=${dte}`}
           className="inline-block rounded-xl bg-green-500 px-8 py-3.5 text-base font-semibold text-gray-950 transition-colors hover:bg-green-400"
         >
           Build My Order →

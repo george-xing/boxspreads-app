@@ -31,22 +31,13 @@ export function findNearestExpiry(tenor: Tenor, from: Date): string {
   const tenorInfo = TENORS.find((t) => t.value === tenor);
   if (!tenorInfo) throw new Error(`Unknown tenor: ${tenor}`);
 
-  let expiryYear: number;
-  let expiryMonth: number; // 0-indexed
+  // Use UTC to avoid timezone issues. Clamp day to 28 before adding months
+  // to prevent month-end rollover (e.g., Aug 31 + 6M → Mar instead of Feb).
+  const targetMonth = from.getUTCMonth() + tenorInfo.months;
+  const targetYear = from.getUTCFullYear() + Math.floor(targetMonth / 12);
+  const targetMonthMod = targetMonth % 12;
 
-  if (tenorInfo.months >= 12) {
-    // For annual tenors, target December of the year ending the tenor period.
-    // e.g. 1Y from April 2026 → December 2026 (end of that calendar year).
-    expiryYear = from.getFullYear() + Math.ceil(tenorInfo.months / 12) - 1;
-    expiryMonth = 11; // December
-  } else {
-    const targetDate = new Date(from);
-    targetDate.setMonth(targetDate.getMonth() + tenorInfo.months);
-    expiryYear = targetDate.getFullYear();
-    expiryMonth = targetDate.getMonth();
-  }
-
-  const expiry = thirdFriday(expiryYear, expiryMonth);
+  const expiry = thirdFriday(targetYear, targetMonthMod);
 
   const year = expiry.getFullYear();
   const month = String(expiry.getMonth() + 1).padStart(2, "0");
