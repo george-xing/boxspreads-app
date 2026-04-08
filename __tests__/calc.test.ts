@@ -10,7 +10,7 @@ import {
 
 describe("calcBoxRateSimple", () => {
   it("adds spread to treasury yield", () => {
-    expect(calcBoxRateSimple(0.0382, 30)).toBeCloseTo(0.0412, 4);
+    expect(calcBoxRateSimple(0.0382, 10)).toBeCloseTo(0.0392, 4);
   });
 
   it("handles zero spread", () => {
