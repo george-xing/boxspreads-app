@@ -1,5 +1,7 @@
 "use client";
 
+import { useState, useEffect } from "react";
+
 interface QuoteInputsProps {
   bidPrice: number | null;
   askPrice: number | null;
@@ -12,29 +14,52 @@ interface QuoteInputsProps {
   onDteOverrideChange: (v: number | null) => void;
 }
 
-function parseFloat_(v: string): number | null {
-  const n = parseFloat(v);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function parseInt_(v: string): number | null {
-  const n = parseInt(v);
-  return Number.isFinite(n) && n > 0 ? n : null;
-}
-
-function Field({
+function NumericField({
   label,
-  value,
+  numericValue,
   placeholder,
-  onChange,
+  onValueChange,
   suffix,
+  integer,
 }: {
   label: string;
-  value: string;
+  numericValue: number | null;
   placeholder: string;
-  onChange: (v: string) => void;
+  onValueChange: (v: number | null) => void;
   suffix?: string;
+  integer?: boolean;
 }) {
+  const [text, setText] = useState(numericValue?.toString() ?? "");
+
+  // Sync local text when parent clears the value (e.g., tenor change)
+  useEffect(() => {
+    if (numericValue === null) setText("");
+  }, [numericValue]);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const raw = e.target.value;
+    setText(raw);
+    if (raw === "") {
+      onValueChange(null);
+      return;
+    }
+    const n = integer ? parseInt(raw) : parseFloat(raw);
+    if (Number.isFinite(n) && n > 0) {
+      onValueChange(n);
+    }
+  }
+
+  function handleBlur() {
+    if (text === "") return;
+    const n = integer ? parseInt(text) : parseFloat(text);
+    if (Number.isFinite(n) && n > 0) {
+      setText(n.toString());
+    } else {
+      setText("");
+      onValueChange(null);
+    }
+  }
+
   return (
     <div className="flex-1">
       <div className="mb-1 text-xs text-gray-600">{label}</div>
@@ -42,9 +67,10 @@ function Field({
         <input
           type="text"
           inputMode="decimal"
-          value={value}
+          value={text}
           placeholder={placeholder}
-          onChange={(e) => onChange(e.target.value)}
+          onChange={handleChange}
+          onBlur={handleBlur}
           className="w-full bg-transparent text-sm text-white outline-none placeholder:text-gray-700"
         />
         {suffix && (
@@ -72,30 +98,31 @@ export function QuoteInputs({
         Enter from your SPX option chain
       </div>
       <div className="flex gap-3">
-        <Field
+        <NumericField
           label="Bid price"
-          value={bidPrice?.toString() ?? ""}
+          numericValue={bidPrice}
           placeholder="e.g. 956.20"
-          onChange={(v) => onBidChange(v ? parseFloat_(v) : null)}
+          onValueChange={onBidChange}
         />
-        <Field
+        <NumericField
           label="Ask price"
-          value={askPrice?.toString() ?? ""}
+          numericValue={askPrice}
           placeholder="e.g. 958.80"
-          onChange={(v) => onAskChange(v ? parseFloat_(v) : null)}
+          onValueChange={onAskChange}
         />
-        <Field
+        <NumericField
           label="Width"
-          value={strikeWidth?.toString() ?? ""}
+          numericValue={strikeWidth}
           placeholder="e.g. 1000"
-          onChange={(v) => onStrikeWidthChange(v ? parseFloat_(v) : null)}
+          onValueChange={onStrikeWidthChange}
           suffix="$"
         />
-        <Field
+        <NumericField
           label="DTE"
-          value={dteOverride?.toString() ?? ""}
+          numericValue={dteOverride}
           placeholder={autoDte.toString()}
-          onChange={(v) => onDteOverrideChange(v ? parseInt_(v) : null)}
+          onValueChange={onDteOverrideChange}
+          integer
         />
       </div>
       <div className="mt-2 text-xs text-gray-700">

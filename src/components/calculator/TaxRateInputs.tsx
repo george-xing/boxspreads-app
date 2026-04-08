@@ -1,10 +1,62 @@
 "use client";
 
+import { useState } from "react";
+
 interface TaxRateInputsProps {
   federalRate: number;
   stateRate: number;
   onFederalChange: (rate: number) => void;
   onStateChange: (rate: number) => void;
+}
+
+function TaxField({
+  label,
+  rate,
+  onChange,
+}: {
+  label: string;
+  rate: number;
+  onChange: (rate: number) => void;
+}) {
+  const displayValue = Math.round(rate * 10000) / 100;
+  const [localValue, setLocalValue] = useState(displayValue.toString());
+  const [focused, setFocused] = useState(false);
+
+  function handleChange(e: React.ChangeEvent<HTMLInputElement>) {
+    setLocalValue(e.target.value);
+    const val = parseFloat(e.target.value);
+    if (Number.isFinite(val)) {
+      onChange(val / 100);
+    }
+  }
+
+  function handleBlur() {
+    setFocused(false);
+    const val = parseFloat(localValue);
+    if (Number.isFinite(val)) {
+      setLocalValue((Math.round(val * 100) / 100).toString());
+    } else {
+      setLocalValue(displayValue.toString());
+    }
+  }
+
+  const shown = focused ? localValue : displayValue.toString();
+
+  return (
+    <label className="flex items-center gap-1">
+      <span>{label}</span>
+      <input
+        type="text"
+        inputMode="decimal"
+        value={shown}
+        onChange={handleChange}
+        onFocus={() => { setFocused(true); setLocalValue(displayValue.toString()); }}
+        onBlur={handleBlur}
+        className="w-12 rounded border border-gray-700 bg-gray-800 px-1.5 py-1 text-center text-xs text-gray-300 outline-none focus:border-gray-500"
+      />
+      <span>%</span>
+    </label>
+  );
 }
 
 export function TaxRateInputs({
@@ -13,39 +65,11 @@ export function TaxRateInputs({
   onFederalChange,
   onStateChange,
 }: TaxRateInputsProps) {
-  function handleChange(
-    e: React.ChangeEvent<HTMLInputElement>,
-    setter: (rate: number) => void
-  ) {
-    const val = parseFloat(e.target.value);
-    setter(Number.isFinite(val) ? val / 100 : 0);
-  }
-
   return (
     <div className="flex items-center gap-3 text-xs text-gray-500">
       <span>Tax rates:</span>
-      <label className="flex items-center gap-1">
-        <span>Federal</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={(federalRate * 100).toString()}
-          onChange={(e) => handleChange(e, onFederalChange)}
-          className="w-12 rounded border border-gray-700 bg-gray-800 px-1.5 py-1 text-center text-xs text-gray-300 outline-none focus:border-gray-500"
-        />
-        <span>%</span>
-      </label>
-      <label className="flex items-center gap-1">
-        <span>State</span>
-        <input
-          type="text"
-          inputMode="decimal"
-          value={(stateRate * 100).toString()}
-          onChange={(e) => handleChange(e, onStateChange)}
-          className="w-12 rounded border border-gray-700 bg-gray-800 px-1.5 py-1 text-center text-xs text-gray-300 outline-none focus:border-gray-500"
-        />
-        <span>%</span>
-      </label>
+      <TaxField label="Federal" rate={federalRate} onChange={onFederalChange} />
+      <TaxField label="State" rate={stateRate} onChange={onStateChange} />
     </div>
   );
 }

@@ -138,6 +138,12 @@ export function Calculator() {
         <DurationPicker value={tenor} onChange={handleTenorChange} />
         <TabSwitcher value={tab} onChange={setTab} />
 
+        {ratesError && tab === "estimate" && (
+          <div className="rounded-lg border border-yellow-800 bg-yellow-900/10 px-3 py-2 text-xs text-yellow-500">
+            Using fallback rates — live Treasury data unavailable
+          </div>
+        )}
+
         {tab === "estimate" ? (
           <div className="space-y-3">
             <RateResult
