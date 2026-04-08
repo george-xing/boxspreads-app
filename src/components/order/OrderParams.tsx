@@ -15,10 +15,10 @@ export function OrderParams({ spreadWidth, limitPrice, contracts }: OrderParamsP
       <div className="grid grid-cols-2 gap-4 text-sm">
         {[
           { label: "Order type", value: "Limit (combo order)" },
-          { label: "Limit price (net debit)", value: `$${limitPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })} per contract` },
+          { label: "Limit price (net credit)", value: `$${limitPrice.toLocaleString("en-US", { minimumFractionDigits: 2 })} per contract` },
           { label: "Quantity", value: `${contracts} contract${contracts > 1 ? "s" : ""}` },
-          { label: "Total cost to repay at expiry", value: `$${repayment.toLocaleString()}` },
-          { label: "You receive today (premium)", value: `$${premium.toLocaleString()}`, highlight: "green" },
+          { label: "You owe at expiry", value: `$${repayment.toLocaleString()}` },
+          { label: "You receive today (credit)", value: `$${premium.toLocaleString()}`, highlight: "green" },
           { label: "Implied interest cost", value: `$${interestCost.toLocaleString()}`, highlight: "orange" },
         ].map(({ label, value, highlight }) => (
           <div key={label}>

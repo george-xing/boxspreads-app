@@ -2,24 +2,44 @@
 
 import { useSearchParams } from "next/navigation";
 import { Suspense, useMemo } from "react";
+import Link from "next/link";
 import { OrderSummary } from "@/components/order/OrderSummary";
 import { LegTable } from "@/components/order/LegTable";
 import { OrderParams } from "@/components/order/OrderParams";
 import { FeeBreakdown } from "@/components/order/FeeBreakdown";
 import { PreSubmitChecklist } from "@/components/order/PreSubmitChecklist";
 import { BrokerageGuide } from "@/components/order/BrokerageGuide";
-import { selectStrikes, findNearestExpiry, buildBoxLegs, calcSpreadWidth } from "@/lib/strikes";
-import { BROKERAGE_FEES } from "@/lib/constants";
+import { selectStrikes, findNearestExpiry, buildBoxLegs, calcSpreadWidth, calcDte } from "@/lib/strikes";
+import { BROKERAGE_FEES, BROKERAGES, TENORS } from "@/lib/constants";
 import type { Brokerage, Tenor } from "@/lib/types";
 
 const CURRENT_SPX = 5500;
 
+const VALID_TENORS = new Set(TENORS.map((t) => t.value));
+const VALID_BROKERAGES = new Set(BROKERAGES.map((b) => b.value));
+
+function isValidTenor(v: string | null): v is Tenor {
+  return v !== null && VALID_TENORS.has(v as Tenor);
+}
+
+function isValidBrokerage(v: string | null): v is Brokerage {
+  return v !== null && VALID_BROKERAGES.has(v as Brokerage);
+}
+
 function OrderContent() {
   const searchParams = useSearchParams();
-  const amount = Number(searchParams.get("amount")) || 250000;
-  const tenor = (searchParams.get("tenor") as Tenor) || "1Y";
-  const brokerage = (searchParams.get("brokerage") as Brokerage) || "ibkr";
-  const rate = Number(searchParams.get("rate")) || 0.0412;
+
+  const rawAmount = Number(searchParams.get("amount"));
+  const amount = rawAmount > 0 && isFinite(rawAmount) ? rawAmount : 250000;
+
+  const rawTenor = searchParams.get("tenor");
+  const tenor: Tenor = isValidTenor(rawTenor) ? rawTenor : "1Y";
+
+  const rawBrokerage = searchParams.get("brokerage");
+  const brokerage: Brokerage = isValidBrokerage(rawBrokerage) ? rawBrokerage : "ibkr";
+
+  const rawRate = Number(searchParams.get("rate"));
+  const rate = rawRate > 0 && rawRate < 1 && isFinite(rawRate) ? rawRate : 0.0412;
 
   const order = useMemo(() => {
     const contracts = 1;
@@ -28,11 +48,12 @@ function OrderContent() {
     const legs = buildBoxLegs(lower, upper, expiry);
     const spreadWidth = calcSpreadWidth(amount, contracts);
 
-    const tenorMonths = { "3M": 3, "6M": 6, "1Y": 12, "2Y": 24, "3Y": 36, "5Y": 60 }[tenor] ?? 12;
-    const dte = Math.round(tenorMonths * 30.44);
+    // Use actual DTE from expiry date
+    const dte = calcDte(expiry);
+    // Limit price: what you receive per share for the short box
     const limitPrice = spreadWidth / (1 + rate * (dte / 365));
 
-    return { legs, expiry, spreadWidth, limitPrice, contracts };
+    return { legs, expiry, spreadWidth, limitPrice, contracts, dte };
   }, [amount, tenor, rate]);
 
   const fees = BROKERAGE_FEES[brokerage];
@@ -70,7 +91,7 @@ function OrderContent() {
         contracts={order.contracts}
       />
 
-      <FeeBreakdown fees={fees} contracts={order.contracts} borrowAmount={amount} />
+      <FeeBreakdown fees={fees} contracts={order.contracts} borrowAmount={amount} dte={order.dte} />
 
       <BrokerageGuide
         brokerage={brokerage}
@@ -81,12 +102,12 @@ function OrderContent() {
       <PreSubmitChecklist />
 
       <div className="text-center">
-        <a
+        <Link
           href="/"
           className="text-sm text-gray-500 underline hover:text-gray-300"
         >
           ← Back to calculator
-        </a>
+        </Link>
       </div>
     </div>
   );

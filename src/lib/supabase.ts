@@ -1,12 +1,10 @@
-import { createClient } from "@supabase/supabase-js";
+import { createClient, SupabaseClient } from "@supabase/supabase-js";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-let _client: ReturnType<typeof createClient<any>> | null = null;
+let _client: SupabaseClient | null = null;
 
 // Lazy singleton — resolves env vars at call time, not at module import time.
 // This prevents build-time errors when env vars are not available.
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export function getSupabase(): ReturnType<typeof createClient<any>> {
+function getSupabase(): SupabaseClient {
   if (!_client) {
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY;
@@ -22,8 +20,9 @@ export function getSupabase(): ReturnType<typeof createClient<any>> {
   return _client;
 }
 
-// Re-export a convenience alias for modules that prefer the named import.
+// Proxy that defers client creation to first use
 export const supabase = {
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  from: (table: string) => getSupabase().from(table) as any,
+  from(table: string) {
+    return getSupabase().from(table);
+  },
 };

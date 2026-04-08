@@ -21,34 +21,30 @@ async function fetchFromFred(
   return parseFloat(value) / 100;
 }
 
-interface TreasuryRateRow {
-  tenor: string;
-  yield_pct: number;
-  fetched_at: string;
-}
-
-async function getLatestRates(): Promise<Record<string, number>> {
-  const { data: cached } = await supabase
+async function getLatestRates(): Promise<{ rates: Record<string, number>; source: "cache" | "fred" | "empty" }> {
+  // Try cache first
+  const { data: cached, error: cacheError } = await supabase
     .from("treasury_rates")
     .select("tenor, yield_pct, fetched_at")
     .order("date", { ascending: false })
     .limit(9);
 
-  const now = new Date();
-  const cacheValid =
-    cached &&
-    cached.length > 0 &&
-    now.getTime() - new Date(cached[0].fetched_at).getTime() <
+  if (!cacheError && cached && cached.length > 0) {
+    const now = new Date();
+    const cacheValid =
+      now.getTime() - new Date(cached[0].fetched_at).getTime() <
       CACHE_MAX_AGE_HOURS * 3600 * 1000;
 
-  if (cacheValid && cached) {
-    const rates: Record<string, number> = {};
-    for (const row of cached) {
-      rates[row.tenor] = Number(row.yield_pct) / 100;
+    if (cacheValid) {
+      const rates: Record<string, number> = {};
+      for (const row of cached) {
+        rates[row.tenor] = Number(row.yield_pct) / 100;
+      }
+      return { rates, source: "cache" };
     }
-    return rates;
   }
 
+  // Fetch fresh from FRED
   const rates: Record<string, number> = {};
   const today = new Date().toISOString().split("T")[0];
 
@@ -69,12 +65,24 @@ async function getLatestRates(): Promise<Record<string, number>> {
     }
   }
 
-  return rates;
+  if (Object.keys(rates).length === 0) {
+    return { rates, source: "empty" };
+  }
+
+  return { rates, source: "fred" };
 }
 
 export async function GET() {
   try {
-    const rates = await getLatestRates();
+    const { rates, source } = await getLatestRates();
+
+    if (source === "empty") {
+      return NextResponse.json(
+        { error: "No treasury rate data available", rates: {} },
+        { status: 503 }
+      );
+    }
+
     return NextResponse.json(rates, {
       headers: {
         "Cache-Control": "public, s-maxage=3600, stale-while-revalidate=86400",

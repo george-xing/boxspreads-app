@@ -4,14 +4,15 @@ interface FeeBreakdownProps {
   fees: BrokerageFees;
   contracts: number;
   borrowAmount: number;
+  dte: number;
 }
 
-export function FeeBreakdown({ fees, contracts, borrowAmount }: FeeBreakdownProps) {
+export function FeeBreakdown({ fees, contracts, borrowAmount, dte }: FeeBreakdownProps) {
   const commissionTotal = fees.commission * 4 * contracts;
   const exchangeTotal = fees.exchangeFee * 4 * contracts;
   const regulatoryTotal = fees.regulatoryFee * 4 * contracts;
   const total = commissionTotal + exchangeTotal + regulatoryTotal;
-  const pctImpact = (total / borrowAmount) * 100;
+  const annualizedPct = (total / borrowAmount) * (365 / dte) * 100;
 
   return (
     <div className="rounded-xl border border-gray-700 bg-gray-900 p-5">
@@ -26,7 +27,7 @@ export function FeeBreakdown({ fees, contracts, borrowAmount }: FeeBreakdownProp
         </div>
       </div>
       <div className="mt-2 text-xs text-gray-600">
-        Adds ~{pctImpact.toFixed(3)}% to your effective rate on a ${borrowAmount.toLocaleString()} box.
+        Adds ~{annualizedPct.toFixed(3)}% annualized to your effective rate on a ${borrowAmount.toLocaleString()} box ({dte} DTE).
       </div>
     </div>
   );

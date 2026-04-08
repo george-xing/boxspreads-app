@@ -1,4 +1,5 @@
 import type { Metadata } from "next";
+import Link from "next/link";
 
 export const metadata: Metadata = {
   title: "Learn Box Spreads — boxspreads.app",
@@ -99,12 +100,12 @@ export default function LearnPage() {
       </Section>
 
       <div className="text-center">
-        <a
+        <Link
           href="/"
           className="inline-block rounded-xl bg-green-500 px-8 py-3.5 text-base font-semibold text-gray-950 transition-colors hover:bg-green-400"
         >
           Calculate Your Rate →
-        </a>
+        </Link>
       </div>
     </div>
   );

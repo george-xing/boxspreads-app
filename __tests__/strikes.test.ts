@@ -4,6 +4,7 @@ import {
   selectStrikes,
   findNearestExpiry,
   buildBoxLegs,
+  calcDte,
 } from "@/lib/strikes";
 
 describe("calcSpreadWidth", () => {
@@ -57,29 +58,45 @@ describe("buildBoxLegs", () => {
   it("builds 4 correct legs for a short box (borrowing)", () => {
     const legs = buildBoxLegs(4000, 6500, "2026-12-18");
     expect(legs).toHaveLength(4);
+    // Short box: sell lower call, buy upper call (bear call spread)
     expect(legs[0]).toEqual({
       strike: 4000,
       type: "call",
-      action: "buy",
+      action: "sell",
       expiry: "2026-12-18",
     });
     expect(legs[1]).toEqual({
       strike: 6500,
       type: "call",
-      action: "sell",
+      action: "buy",
       expiry: "2026-12-18",
     });
+    // Short box: buy lower put, sell upper put (bull put spread)
     expect(legs[2]).toEqual({
       strike: 4000,
       type: "put",
-      action: "sell",
+      action: "buy",
       expiry: "2026-12-18",
     });
     expect(legs[3]).toEqual({
       strike: 6500,
       type: "put",
-      action: "buy",
+      action: "sell",
       expiry: "2026-12-18",
     });
+  });
+});
+
+describe("calcDte", () => {
+  it("calculates days between two dates", () => {
+    // April 7 to Dec 18 = 255 days (24 in Apr + 31+30+31+31+30+31+30+18 = 256)
+    const dte = calcDte("2026-12-18", new Date("2026-04-07"));
+    expect(dte).toBe(255);
+  });
+
+  it("handles same-year short tenor", () => {
+    // April 7 to Jul 17 = 101 days
+    const dte = calcDte("2026-07-17", new Date("2026-04-07"));
+    expect(dte).toBe(101);
   });
 });

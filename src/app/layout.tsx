@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Inter } from "next/font/google";
+import Link from "next/link";
 import "./globals.css";
 
 const inter = Inter({ subsets: ["latin"] });
@@ -27,12 +28,12 @@ export default function RootLayout({
         className={`${inter.className} bg-gray-950 text-gray-100 antialiased`}
       >
         <nav className="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
-          <a href="/" className="text-sm font-semibold text-white">
+          <Link href="/" className="text-sm font-semibold text-white">
             boxspreads.app
-          </a>
+          </Link>
           <div className="flex gap-4 text-sm text-gray-500">
-            <a href="/" className="hover:text-gray-300">Calculator</a>
-            <a href="/learn" className="hover:text-gray-300">Learn</a>
+            <Link href="/" className="hover:text-gray-300">Calculator</Link>
+            <Link href="/learn" className="hover:text-gray-300">Learn</Link>
           </div>
         </nav>
         <main className="mx-auto max-w-2xl px-4 py-12">{children}</main>

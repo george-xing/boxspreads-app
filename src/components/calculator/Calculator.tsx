@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Link from "next/link";
 import { AmountInput } from "./AmountInput";
 import { DurationPicker } from "./DurationPicker";
 import { BrokeragePicker } from "./BrokeragePicker";
@@ -15,6 +16,7 @@ import {
   calcFeeImpact,
   calcAllInRate,
 } from "@/lib/calc";
+import { findNearestExpiry, calcDte } from "@/lib/strikes";
 import {
   BROKERAGE_FEES,
   COMPARISON_RATES,
@@ -22,8 +24,6 @@ import {
   DEFAULT_FEDERAL_TAX_RATE,
   DEFAULT_STATE_TAX_RATE,
   LTCG_RATE_FEDERAL,
-  STCG_RATE_FEDERAL,
-  TENORS,
 } from "@/lib/constants";
 import type { Tenor, Brokerage, TreasuryRates } from "@/lib/types";
 
@@ -38,40 +38,51 @@ export function Calculator() {
   const [federalTaxRate, setFederalTaxRate] = useState(DEFAULT_FEDERAL_TAX_RATE);
   const [stateTaxRate, setStateTaxRate] = useState(DEFAULT_STATE_TAX_RATE);
   const [treasuryRates, setTreasuryRates] = useState<TreasuryRates>({});
+  const [ratesError, setRatesError] = useState(false);
 
   useEffect(() => {
     fetch("/api/rates/treasury")
-      .then((r) => r.json())
-      .then(setTreasuryRates)
-      .catch(console.error);
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch");
+        return r.json();
+      })
+      .then((data) => {
+        if (data.error || Object.keys(data).length === 0) {
+          setRatesError(true);
+        } else {
+          setTreasuryRates(data);
+        }
+      })
+      .catch(() => setRatesError(true));
   }, []);
 
-  const tenorMonths = TENORS.find((t) => t.value === tenor)?.months ?? 12;
-  const dte = Math.round(tenorMonths * 30.44);
+  // Use actual DTE from the expiry date, not an approximation
+  const expiry = findNearestExpiry(tenor, new Date());
+  const dte = calcDte(expiry);
 
   const result = useMemo(() => {
     const fees = BROKERAGE_FEES[brokerage];
     const useAdvanced =
       bidPrice !== null && askPrice !== null && strikeWidth !== null;
 
-    let boxRate: number;
+    let impliedRate: number;
     if (useAdvanced) {
       const midpoint = (bidPrice + askPrice) / 2;
-      boxRate = calcBoxRateFromQuotes(midpoint, strikeWidth, dte);
+      impliedRate = calcBoxRateFromQuotes(midpoint, strikeWidth, dte);
     } else {
       const treasuryYield = treasuryRates[tenor] ?? 0.04;
-      boxRate = calcBoxRateSimple(treasuryYield, spreadBps);
+      impliedRate = calcBoxRateSimple(treasuryYield, spreadBps);
     }
 
     const feeImpact = calcFeeImpact(fees, 1, amount, dte);
-    const allInRate = calcAllInRate(boxRate, feeImpact);
+    const allInRate = calcAllInRate(impliedRate, feeImpact);
 
     const ltcg = federalTaxRate <= 0.24 ? 0.15 : LTCG_RATE_FEDERAL;
     const stcg = federalTaxRate;
     const blendedTax = calcBlendedTaxRate(ltcg, stcg, stateTaxRate);
     const afterTaxRate = calcAfterTaxRate(allInRate, blendedTax);
 
-    return { boxRate: allInRate, afterTaxRate, feeImpact };
+    return { impliedRate, allInRate, afterTaxRate, feeImpact };
   }, [
     amount,
     tenor,
@@ -93,8 +104,10 @@ export function Calculator() {
   const methodology = useAdvanced
     ? `From market quotes: mid ${((bidPrice! + askPrice!) / 2).toFixed(2)} on $${strikeWidth!.toLocaleString()} width · Fee-inclusive`
     : treasuryYield
-      ? `Based on ${tenor} Treasury (${(treasuryYield * 100).toFixed(2)}%) + ${spreadBps}bps spread · Fee-inclusive (4 legs × $${BROKERAGE_FEES[brokerage].commission.toFixed(2)})`
-      : "Loading rates...";
+      ? `Based on ${tenor} Treasury (${(treasuryYield * 100).toFixed(2)}%) + ${spreadBps}bps spread · ${dte} DTE · Fee-inclusive`
+      : ratesError
+        ? "Using fallback rate (4.00%) — live Treasury data unavailable"
+        : "Loading rates...";
 
   const comparison = COMPARISON_RATES[brokerage];
 
@@ -128,26 +141,26 @@ export function Calculator() {
           onSpreadBpsChange={setSpreadBps}
         />
         <RateResult
-          boxRate={result.boxRate}
+          boxRate={result.allInRate}
           afterTaxRate={result.afterTaxRate}
           methodology={methodology}
         />
       </div>
 
       <ComparisonStrip
-        boxRate={result.boxRate}
+        boxRate={result.allInRate}
         marginLoan={comparison.marginLoan}
         sbloc={comparison.sbloc}
         heloc={comparison.heloc}
       />
 
       <div className="text-center">
-        <a
-          href={`/order?amount=${amount}&tenor=${tenor}&brokerage=${brokerage}&rate=${result.boxRate}`}
+        <Link
+          href={`/order?amount=${amount}&tenor=${tenor}&brokerage=${brokerage}&rate=${result.impliedRate}`}
           className="inline-block rounded-xl bg-green-500 px-8 py-3.5 text-base font-semibold text-gray-950 transition-colors hover:bg-green-400"
         >
           Build My Order →
-        </a>
+        </Link>
         <p className="mt-2 text-xs text-gray-600">
           Step-by-step instructions for your brokerage. No account needed.
         </p>
