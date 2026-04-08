@@ -54,7 +54,12 @@ async function getLatestRates(): Promise<{ rates: Record<string, number>; source
         for (const row of cached) {
           rates[row.tenor] = Number(row.yield_pct) / 100;
         }
-        return { rates, source: "cache" };
+        // Only use cache if all expected tenors are present
+        const expectedTenors = Object.keys(TENOR_TO_FRED_SERIES);
+        const hasAllTenors = expectedTenors.every((t) => t in rates);
+        if (hasAllTenors) {
+          return { rates, source: "cache" };
+        }
       }
     }
   }

@@ -19,6 +19,16 @@ interface AdvancedPanelProps {
   onSpreadBpsChange: (v: number) => void;
 }
 
+function safeFloat(v: string, fallback: number = 0): number {
+  const n = parseFloat(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
+function safeInt(v: string, fallback: number = 0): number {
+  const n = parseInt(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 function NumericField({
   label,
   hint,
@@ -91,21 +101,21 @@ export function AdvancedPanel(props: AdvancedPanelProps) {
                 label="Bid price"
                 value={props.bidPrice?.toString() ?? ""}
                 onChange={(v) =>
-                  props.onBidChange(v ? parseFloat(v) || null : null)
+                  props.onBidChange(v ? safeFloat(v) || null : null)
                 }
               />
               <NumericField
                 label="Ask price"
                 value={props.askPrice?.toString() ?? ""}
                 onChange={(v) =>
-                  props.onAskChange(v ? parseFloat(v) || null : null)
+                  props.onAskChange(v ? safeFloat(v) || null : null)
                 }
               />
               <NumericField
                 label="Spread width"
                 value={props.strikeWidth?.toString() ?? ""}
                 onChange={(v) =>
-                  props.onStrikeWidthChange(v ? parseFloat(v) || null : null)
+                  props.onStrikeWidthChange(v ? safeFloat(v) || null : null)
                 }
                 suffix="$"
               />
@@ -113,7 +123,7 @@ export function AdvancedPanel(props: AdvancedPanelProps) {
                 label="Days to expiry"
                 value={props.dteOverride?.toString() ?? ""}
                 onChange={(v) =>
-                  props.onDteOverrideChange(v ? parseInt(v) || null : null)
+                  props.onDteOverrideChange(v ? safeInt(v) || null : null)
                 }
                 suffix="DTE"
               />
@@ -133,7 +143,7 @@ export function AdvancedPanel(props: AdvancedPanelProps) {
                 label="Federal"
                 value={(props.federalTaxRate * 100).toString()}
                 onChange={(v) =>
-                  props.onFederalTaxChange((parseFloat(v) || 0) / 100)
+                  props.onFederalTaxChange(safeFloat(v) / 100)
                 }
                 suffix="%"
               />
@@ -141,7 +151,7 @@ export function AdvancedPanel(props: AdvancedPanelProps) {
                 label="State"
                 value={(props.stateTaxRate * 100).toString()}
                 onChange={(v) =>
-                  props.onStateTaxChange((parseFloat(v) || 0) / 100)
+                  props.onStateTaxChange(safeFloat(v) / 100)
                 }
                 suffix="%"
               />

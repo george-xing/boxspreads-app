@@ -16,7 +16,8 @@ export function selectStrikes(
   const width = calcSpreadWidth(borrowAmount, contracts);
   const lower = Math.floor(currentSpx / 500) * 500;
   const upper = Math.round((lower + width) / 5) * 5; // round to nearest valid SPX strike (5-pt increments)
-  return { lower, upper };
+  // Ensure minimum 5-point spread to prevent zero-width box
+  return { lower, upper: Math.max(upper, lower + 5) };
 }
 
 function thirdFriday(year: number, month: number): Date {

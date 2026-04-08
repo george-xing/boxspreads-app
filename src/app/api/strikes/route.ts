@@ -10,7 +10,7 @@ export async function GET(request: Request) {
   const amount = Number(searchParams.get("amount"));
   const tenor = searchParams.get("tenor") as Tenor;
 
-  if (!amount || amount <= 0) {
+  if (!amount || amount <= 0 || !Number.isFinite(amount)) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
   }
   if (!TENORS.some((t) => t.value === tenor)) {

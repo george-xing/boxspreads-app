@@ -57,7 +57,10 @@ function OrderContent() {
     // Limit price: what you receive per share for the short box
     const limitPrice = spreadWidth / (1 + rate * (dte / 365));
 
-    return { legs, expiry, spreadWidth, limitPrice, contracts, dte };
+    const expiryDte = calcDte(expiry);
+    const dteOverridden = dteParam !== null && dteParam !== expiryDte;
+
+    return { legs, expiry, spreadWidth, limitPrice, contracts, dte, dteOverridden };
   }, [amount, tenor, rate, dteParam]);
 
   const fees = BROKERAGE_FEES[brokerage];
@@ -94,6 +97,17 @@ function OrderContent() {
         limitPrice={order.limitPrice}
         contracts={order.contracts}
       />
+
+      {order.dteOverridden && (
+        <div className="rounded-lg border border-orange-800 bg-orange-900/10 p-3">
+          <p className="text-xs text-orange-400">
+            <strong>Custom DTE ({order.dte} days):</strong> The limit price above
+            reflects pricing from a different expiry than the {tenor} tenor legs shown.
+            When entering this order, select the expiry that matches your market
+            quote — not the one shown in the leg table.
+          </p>
+        </div>
+      )}
 
       <FeeBreakdown fees={fees} contracts={order.contracts} borrowAmount={order.spreadWidth * 100} dte={order.dte} />
 
