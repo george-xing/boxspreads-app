@@ -100,7 +100,7 @@ function IbkrGuide({ expiry, limitPrice }: { expiry: string; limitPrice: number 
         {
           step: 7,
           title: "Submit and wait for the fill",
-          desc: "Click Submit Order and verify the confirmation shows the correct credit amount. Fills can take minutes to hours. If no fill after 24 hours, raise the limit price by $0.50–1.00 at a time. Don't cancel and re-enter — just modify the existing order.",
+          desc: "Click Submit Order and verify the confirmation shows the correct credit amount. Fills can take minutes to hours. If no fill after 24 hours, lower your credit price by $0.50–1.00 at a time (accept slightly less cash for better fill odds). Don't cancel and re-enter — just modify the existing order.",
         },
       ]} />
     </>
@@ -153,7 +153,7 @@ function SchwabGuide({ expiry, limitPrice }: { expiry: string; limitPrice: numbe
         {
           step: 7,
           title: "Confirm and Send",
-          desc: "Click Confirm and Send. Review the confirmation dialog carefully — verify the net credit amount and all 4 legs. Fills may take hours. If no fill in 24 hours, modify the limit price up by $0.50–1.00.",
+          desc: "Click Confirm and Send. Review the confirmation dialog carefully — verify the net credit amount and all 4 legs. Fills may take hours. If no fill in 24 hours, lower your credit price by $0.50–1.00 at a time to improve fill odds.",
         },
       ]} />
     </>
@@ -242,7 +242,7 @@ export function BrokerageGuide({ brokerage, expiry, limitPrice }: BrokerageGuide
         </p>
         <p className="border-l-2 border-blue-400 pl-3 text-xs text-blue-700">
           <strong>Fill tip:</strong> Start near the midpoint of the combo bid/ask spread.
-          If no fill in 24h, raise the limit price by $0.50–1.00 at a time. Don&apos;t cancel and re-enter — modify the existing order.
+          If no fill in 24h, lower your credit price by $0.50–1.00 at a time (you accept slightly less cash, which improves your fill odds). Don&apos;t cancel and re-enter — modify the existing order.
         </p>
       </div>
     </div>
