@@ -64,7 +64,7 @@ function IbkrGuide({ expiry, limitPrice }: { expiry: string; limitPrice: number 
       <Prerequisites items={[
         "Options Level 2 or higher (Level 2 includes long box spreads)",
         "Margin account required",
-        "Portfolio Margin strongly recommended ($110K+ net liquidation) — under Reg T, margin requirement equals the full spread value, consuming all buying power",
+        "Portfolio Margin strongly recommended ($110K+ net liquidation) — under Reg T, the margin requirement equals 100% of the spread value (a $100K box locks up $100K in buying power), making the loan pointless for leverage",
       ]} />
       <StepList steps={[
         {
@@ -117,7 +117,7 @@ function SchwabGuide({ expiry, limitPrice }: { expiry: string; limitPrice: numbe
         "Options Level 3 required ('Short Uncovered') — Level 2 is not sufficient",
         "Minimum $25,000 account value for Level 3",
         "Margin account required — not available in IRAs",
-        "Portfolio Margin recommended ($125K minimum at Schwab) — under Reg T, selling a $20K box consumes ~$25K in buying power",
+        "Portfolio Margin recommended ($125K minimum at Schwab) — under Reg T, the margin requirement equals 100% of the spread value plus ~25% penalty (a $100K box consumes ~$125K in buying power)",
       ]} />
       <StepList steps={[
         {
@@ -170,7 +170,7 @@ function FidelityGuide({ expiry, limitPrice }: { expiry: string; limitPrice: num
         "Options Tier 2 required (includes spreads approval)",
         "Minimum $10,000 net worth, $2,000 margin equity",
         "Margin account required — short box spreads are NOT allowed in IRAs",
-        "Portfolio Margin recommended for capital efficiency",
+        "Portfolio Margin recommended — under Reg T, the margin requirement equals 100% of the spread value (a $100K box locks up $100K in buying power). With Portfolio Margin, the requirement is near zero since the position is delta-neutral",
       ]} />
       <StepList steps={[
         {
