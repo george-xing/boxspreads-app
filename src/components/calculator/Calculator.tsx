@@ -250,7 +250,7 @@ export function Calculator() {
               </div>
             </div>
 
-            <div className="mt-3 rounded-lg bg-gray-50 border border-gray-200 p-3">
+            <div className="border-t border-gray-200 pt-3 mt-3">
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Summary</div>
               <div className="text-[13px] text-gray-700 leading-relaxed">
                 <strong className="text-gray-900">Borrow {formatDollars(borrowAmount)} today</strong>,
