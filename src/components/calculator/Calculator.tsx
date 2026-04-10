@@ -257,7 +257,7 @@ export function Calculator() {
                 repay {formatDollars(repayment)} on {selectedExp?.label ?? ""}.
                 {" "}Your total interest cost over {dte} days is{" "}
                 <span className="text-orange-600 font-semibold">{formatDollars(interestCost)}</span>.
-                {" "}Assuming you have enough capital gains to offset, you&apos;ll save{" "}
+                {" "}If you have at least {formatDollars(interestCost)} in capital gains to offset, you&apos;ll save{" "}
                 <span className="text-green-600 font-semibold">{formatDollars(taxSavings)}</span>
                 {" "}in taxes due to Section 1256 treatment.
                 {" "}Your after-tax total cost is{" "}
