@@ -248,13 +248,14 @@ export function Calculator() {
               <div className="text-[13px] text-gray-700 leading-relaxed">
                 <strong className="text-gray-900">Borrow {formatDollars(borrowAmount)} today</strong>,
                 repay {formatDollars(repayment)} on {selectedExp?.label ?? ""}.
-                {" "}Interest cost:{" "}
+                {" "}Your total interest cost over {dte} days is{" "}
                 <span className="text-orange-600 font-semibold">{formatDollars(interestCost)}</span>.
-                {" "}Tax savings:{" "}
-                <span className="text-green-600 font-semibold">{formatDollars(taxSavings)}</span>.
-                {" "}After-tax cost:{" "}
+                {" "}Assuming you have enough capital gains to offset, you&apos;ll save{" "}
+                <span className="text-green-600 font-semibold">{formatDollars(taxSavings)}</span>
+                {" "}in taxes due to Section 1256 treatment.
+                {" "}Your after-tax total cost is{" "}
                 <span className="text-green-700 font-bold">{formatDollars(afterTaxCost)}</span>.
-                <Tooltip content={`Section 1256: 60% long-term capital loss (${formatPct(ltcg)}) + 40% short-term (${formatPct(federalTaxRate)})${stateTaxRate > 0 ? ` + ${formatPct(stateTaxRate)} state` : ""}. Tax savings assume you have capital gains to offset.`} />
+                <Tooltip content={`Section 1256: 60% long-term capital loss (${formatPct(ltcg)}) + 40% short-term (${formatPct(clampedFederal)})${clampedState > 0 ? ` + ${formatPct(clampedState)} state` : ""}. The tax savings require sufficient capital gains to offset the box spread loss at expiry.`} />
               </div>
             </div>
           </div>

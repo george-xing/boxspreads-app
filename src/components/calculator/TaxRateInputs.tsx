@@ -43,19 +43,21 @@ function TaxField({
   const shown = focused ? localValue : displayValue.toString();
 
   return (
-    <label className="flex items-center gap-1">
-      <span>{label}</span>
-      <input
-        type="text"
-        inputMode="decimal"
-        value={shown}
-        onChange={handleChange}
-        onFocus={() => { setFocused(true); setLocalValue(displayValue.toString()); }}
-        onBlur={handleBlur}
-        className="w-12 rounded border border-gray-300 bg-white px-1.5 py-1 text-center text-xs text-gray-700 outline-none focus:border-green-500"
-      />
-      <span>%</span>
-    </label>
+    <div className="flex items-center justify-between gap-2">
+      <span className="text-sm font-medium text-gray-600">{label}</span>
+      <div className="flex items-center gap-1">
+        <input
+          type="text"
+          inputMode="decimal"
+          value={shown}
+          onChange={handleChange}
+          onFocus={() => { setFocused(true); setLocalValue(displayValue.toString()); }}
+          onBlur={handleBlur}
+          className="w-16 rounded-lg border border-gray-300 bg-white px-3 py-1.5 text-right text-sm text-gray-900 outline-none focus:border-green-500"
+        />
+        <span className="text-sm text-gray-400">%</span>
+      </div>
+    </div>
   );
 }
 
@@ -66,10 +68,9 @@ export function TaxRateInputs({
   onStateChange,
 }: TaxRateInputsProps) {
   return (
-    <div className="flex items-center gap-3 text-xs font-medium text-gray-600">
-      <span>Tax rates:</span>
-      <TaxField label="Federal" rate={federalRate} onChange={onFederalChange} />
-      <TaxField label="State" rate={stateRate} onChange={onStateChange} />
+    <div className="space-y-2">
+      <TaxField label="Federal marginal rate" rate={federalRate} onChange={onFederalChange} />
+      <TaxField label="State marginal rate" rate={stateRate} onChange={onStateChange} />
     </div>
   );
 }
