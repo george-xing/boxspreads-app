@@ -39,7 +39,7 @@ export function YieldCurve({ expirations, selectedExpiry, onSelect, boxRates }: 
   const minRate = Math.min(...rates);
   const maxRate = Math.max(...rates);
   const range = maxRate - minRate || 0.005;
-  const padded = range * 0.2;
+  const padded = range * 0.1;
   const yMin = minRate - padded;
   const yMax = maxRate + padded;
 

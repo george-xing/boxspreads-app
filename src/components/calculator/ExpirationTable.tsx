@@ -1,5 +1,6 @@
 "use client";
 
+import { useEffect, useRef } from "react";
 import { formatPct } from "@/lib/format";
 
 interface ExpirationRow {
@@ -18,6 +19,12 @@ interface ExpirationTableProps {
 export type { ExpirationRow };
 
 export function ExpirationTable({ rows, selectedExpiry, onSelect }: ExpirationTableProps) {
+  const selectedRef = useRef<HTMLTableRowElement>(null);
+
+  useEffect(() => {
+    selectedRef.current?.scrollIntoView({ block: "nearest" });
+  }, [selectedExpiry]);
+
   return (
     <div className="max-h-[180px] overflow-y-auto">
       <table className="w-full text-sm">
@@ -34,6 +41,7 @@ export function ExpirationTable({ rows, selectedExpiry, onSelect }: ExpirationTa
             return (
               <tr
                 key={row.date}
+                ref={isSelected ? selectedRef : undefined}
                 onClick={() => onSelect(row.date)}
                 className={`cursor-pointer border-l-2 transition-colors ${
                   isSelected

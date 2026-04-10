@@ -209,7 +209,7 @@ export function Calculator() {
 
         {/* RIGHT */}
         <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3 shadow-sm">
-          <div className="text-xs uppercase tracking-widest text-gray-400">Configure</div>
+          <div className="text-xs font-medium uppercase tracking-widest text-gray-500">Configure</div>
 
           <div className="flex items-center justify-between">
             <span className="text-sm text-gray-500">Expiration</span>
@@ -231,7 +231,7 @@ export function Calculator() {
           />
 
           <div className="border-t border-gray-200 pt-3">
-            <div className="mb-2 text-xs uppercase tracking-widest text-gray-400">Tax rates</div>
+            <div className="mb-2 text-xs font-medium uppercase tracking-widest text-gray-500">Tax rates</div>
             <TaxRateInputs
               federalRate={federalTaxRate}
               stateRate={stateTaxRate}
@@ -247,16 +247,25 @@ export function Calculator() {
               <div className="text-sm text-gray-400 mt-1">{formatPct(allInRate)} pre-tax</div>
             </div>
 
-            <div className="mt-3 rounded-lg bg-gray-50 p-3">
-              <div className="text-sm text-gray-700">
-                <strong className="text-gray-900">Borrow {formatDollars(borrowAmount)} today</strong>,
-                repay {formatDollars(repayment)} on {selectedExp?.label ?? ""}.
-                {" "}Interest cost:{" "}
-                <span className="text-orange-600">{formatDollars(interestCost)}</span>.
-                {" "}Tax savings:{" "}
-                <span className="text-green-600">{formatDollars(taxSavings)}</span>.
-                {" "}After-tax cost:{" "}
-                <span className="text-green-600 font-semibold">{formatDollars(afterTaxCost)}</span>.
+            <div className="mt-3 rounded-lg bg-gray-50 p-3 text-sm">
+              <div className="text-gray-900 font-medium">
+                Borrow {formatDollars(borrowAmount)} today, repay {formatDollars(repayment)} on {selectedExp?.label ?? ""}
+              </div>
+              <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+                <div>
+                  <div className="text-xs text-gray-400">Interest</div>
+                  <div className="text-orange-600 font-semibold">{formatDollars(interestCost)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400">Tax savings</div>
+                  <div className="text-green-600 font-semibold">{formatDollars(taxSavings)}</div>
+                </div>
+                <div>
+                  <div className="text-xs text-gray-400">After-tax cost</div>
+                  <div className="text-green-700 font-bold">{formatDollars(afterTaxCost)}</div>
+                </div>
+              </div>
+              <div className="mt-1 text-right">
                 <Tooltip content={`Section 1256: 60% long-term capital loss (${formatPct(ltcg)}) + 40% short-term (${formatPct(federalTaxRate)})${stateTaxRate > 0 ? ` + ${formatPct(stateTaxRate)} state` : ""}. Tax savings assume you have capital gains to offset.`} />
               </div>
             </div>
