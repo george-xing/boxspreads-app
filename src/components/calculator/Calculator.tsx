@@ -230,7 +230,7 @@ export function Calculator() {
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
             {isUserOverride
               ? "Rates reflect your entered mid price."
-              : "These rates are estimates based on Treasury yields + 30bps spread. For actual pricing, open your brokerage\u2019s SPX option chain, find strikes with high open interest, and enter the real mid price above."
+              : "These rates are estimates based on Treasury yields + 30bps spread. To get your actual rate: build the 4-leg order in your brokerage using the guide below \u2014 the order preview will show the net credit per contract. Enter that as the mid price above."
             }
           </div>
 
