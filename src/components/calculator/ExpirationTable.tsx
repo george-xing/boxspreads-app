@@ -29,7 +29,7 @@ export function ExpirationTable({ rows, selectedExpiry, onSelect }: ExpirationTa
     <div className="max-h-[180px] overflow-y-auto">
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-white">
-          <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-widest text-gray-400">
+          <tr className="border-b border-gray-200 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500">
             <th className="px-4 py-2">Expiration</th>
             <th className="px-3 py-2 text-right">DTE</th>
             <th className="px-3 py-2 text-right">Est. Rate</th>
@@ -46,7 +46,7 @@ export function ExpirationTable({ rows, selectedExpiry, onSelect }: ExpirationTa
                 className={`cursor-pointer border-l-2 transition-colors ${
                   isSelected
                     ? "border-l-green-500 bg-green-50 text-gray-900"
-                    : "border-l-transparent text-gray-600 hover:bg-gray-50"
+                    : "border-l-transparent text-gray-700 hover:bg-gray-50"
                 }`}
               >
                 <td className={`px-4 py-1.5 ${isSelected ? "font-semibold" : ""}`}>{row.label}</td>

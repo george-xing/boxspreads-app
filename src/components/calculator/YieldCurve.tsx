@@ -77,7 +77,7 @@ export function YieldCurve({ expirations, selectedExpiry, onSelect, boxRates }: 
         {yTicks.map((tick) => (
           <g key={tick}>
             <line x1={PAD_L} y1={yForRate(tick)} x2={CHART_W - PAD_R} y2={yForRate(tick)} stroke="#f3f4f6" strokeWidth={0.5} />
-            <text x={PAD_L - 4} y={yForRate(tick) + 3} fill="#9ca3af" fontSize={7} textAnchor="end">{formatPct(tick)}</text>
+            <text x={PAD_L - 4} y={yForRate(tick) + 3} fill="#6b7280" fontSize={7} textAnchor="end">{formatPct(tick)}</text>
           </g>
         ))}
 

@@ -24,7 +24,7 @@ export function OrderParams({ spreadWidth, limitPrice, contracts }: OrderParamsP
           { label: "Implied interest", value: `$${interestCost.toLocaleString()}`, highlight: "orange" },
         ].map(({ label, value, highlight }) => (
           <div key={label}>
-            <div className="text-xs uppercase tracking-wide text-gray-400">{label}</div>
+            <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">{label}</div>
             <div className={`mt-1 text-base ${highlight === "green" ? "text-green-600" : highlight === "orange" ? "text-orange-600" : "text-gray-900"}`}>
               {value}
             </div>

@@ -66,7 +66,7 @@ export function TaxRateInputs({
   onStateChange,
 }: TaxRateInputsProps) {
   return (
-    <div className="flex items-center gap-3 text-xs text-gray-500">
+    <div className="flex items-center gap-3 text-xs font-medium text-gray-600">
       <span>Tax rates:</span>
       <TaxField label="Federal" rate={federalRate} onChange={onFederalChange} />
       <TaxField label="State" rate={stateRate} onChange={onStateChange} />

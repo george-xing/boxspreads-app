@@ -29,10 +29,10 @@ function NumericInput({
 
   return (
     <div className="flex items-center justify-between gap-2">
-      <label className="text-sm text-gray-500 whitespace-nowrap">
+      <label className="text-sm font-medium text-gray-600 whitespace-nowrap">
         {label}
         {estimated && (
-          <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-400">est.</span>
+          <span className="ml-1.5 rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-500">est.</span>
         )}
       </label>
       <div className="flex items-center gap-1">
@@ -77,8 +77,8 @@ export function UnifiedCalculator({
       <NumericInput label="Strike width" value={strikeWidth} onChange={onStrikeWidthChange} prefix="$" step={5} min={5} />
       <NumericInput label="Contracts" value={contracts} onChange={onContractsChange} step={1} min={1} />
       <div className="flex items-center justify-between">
-        <span className="text-sm text-gray-500">Notional</span>
-        <span className="text-sm tabular-nums text-gray-600">
+        <span className="text-sm font-medium text-gray-600">Notional</span>
+        <span className="text-sm font-semibold tabular-nums text-gray-900">
           ${notional.toLocaleString()}
           {snappedWidth !== strikeWidth && (
             <span className="ml-1 text-[10px] text-gray-400">(width snapped to ${snappedWidth})</span>
