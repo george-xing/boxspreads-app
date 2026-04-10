@@ -7,7 +7,6 @@ interface ExpirationRow {
   label: string;
   dte: number;
   boxRate: number;
-  treasuryRate: number;
 }
 
 interface ExpirationTableProps {
@@ -31,7 +30,6 @@ export function ExpirationTable({
             <th className="px-4 py-2">Expiration</th>
             <th className="px-3 py-2 text-right">DTE</th>
             <th className="px-3 py-2 text-right">Est. Rate</th>
-            <th className="px-3 py-2 text-right">Treasury</th>
           </tr>
         </thead>
         <tbody>
@@ -55,9 +53,6 @@ export function ExpirationTable({
                 </td>
                 <td className={`px-3 py-1.5 text-right tabular-nums ${isSelected ? "text-green-400 font-semibold" : ""}`}>
                   {formatPct(row.boxRate)}
-                </td>
-                <td className="px-3 py-1.5 text-right tabular-nums text-gray-500">
-                  {formatPct(row.treasuryRate)}
                 </td>
               </tr>
             );

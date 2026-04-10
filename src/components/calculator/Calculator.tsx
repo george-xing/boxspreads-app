@@ -125,9 +125,8 @@ export function Calculator() {
       label: exp.label,
       dte: exp.dte,
       boxRate: boxRatesMap[exp.date] ?? 0,
-      treasuryRate: interpolateTreasuryYield(exp.dte, treasuryRates),
     }));
-  }, [expirations, treasuryRates, boxRatesMap]);
+  }, [expirations, boxRatesMap]);
 
   // ── Order ──
   const order = selectedExpiry && snappedWidth > 0 ? (() => {
@@ -201,7 +200,6 @@ export function Calculator() {
               expirations={expirations}
               selectedExpiry={selectedExpiry}
               onSelect={handleExpiryChange}
-              treasuryRates={treasuryRates}
               boxRates={boxRatesMap}
             />
           </div>

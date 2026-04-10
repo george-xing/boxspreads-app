@@ -37,7 +37,7 @@ export const COMPARISON_RATES: Record<Brokerage, ComparisonRates> = {
   schwab: { marginLoan: 0.1125, sbloc: 0.065, heloc: 0.075 },
 };
 
-export const DEFAULT_SPREAD_BPS = 10;
+export const DEFAULT_SPREAD_BPS = 30;
 export const SPX_MULTIPLIER = 100;
 export const DEFAULT_FEDERAL_TAX_RATE = 0.37;
 export const DEFAULT_STATE_TAX_RATE = 0.0;
