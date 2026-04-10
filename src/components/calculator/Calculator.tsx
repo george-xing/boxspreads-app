@@ -228,8 +228,14 @@ export function Calculator() {
           />
 
           {!isUserOverride && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
-              These rates are estimated from Treasury yields + 30bps spread. For accurate pricing, check the SPX option chain at your brokerage and enter the actual mid price above.
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700 space-y-1.5">
+              <div className="font-semibold">These rates are estimates based on Treasury yields + 30bps spread.</div>
+              <div>
+                To get actual pricing: check{" "}
+                <a href="https://www.boxtrades.com" target="_blank" rel="noopener noreferrer" className="underline font-medium">boxtrades.com</a>
+                {" "}or your brokerage&apos;s SPX option chain for real box spread quotes at your chosen expiration.
+                Then enter the actual strike width and mid price above — the rates and order will update automatically.
+              </div>
             </div>
           )}
 
@@ -279,7 +285,7 @@ export function Calculator() {
         <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-gray-900">Your Order</h2>
-            <Tooltip content={`These strikes are illustrative, based on SPX ~${CURRENT_SPX.toLocaleString()}. When entering your order, select strikes near the current SPX level with high open interest. The rate and cost are the same regardless of which strikes you choose — only liquidity differs.`} />
+            <Tooltip content={`These strikes are illustrative, based on SPX ~${CURRENT_SPX.toLocaleString()}. When entering your order, check boxtrades.com or your brokerage's option chain for strikes with high open interest near the current SPX level. Use round numbers (e.g. 5000, 5500, 6000). The rate is the same regardless of strikes — only liquidity differs.`} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
