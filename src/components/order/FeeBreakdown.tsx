@@ -1,4 +1,5 @@
 import type { BrokerageFees } from "@/lib/types";
+import { Tooltip } from "@/components/ui/Tooltip";
 
 interface FeeBreakdownProps {
   fees: BrokerageFees;
@@ -12,11 +13,14 @@ export function FeeBreakdown({ fees, contracts, borrowAmount, dte }: FeeBreakdow
   const exchangeTotal = fees.exchangeFee * 4 * contracts;
   const regulatoryTotal = fees.regulatoryFee * 4 * contracts;
   const total = commissionTotal + exchangeTotal + regulatoryTotal;
-  const annualizedPct = (total / borrowAmount) * (365 / dte) * 100;
+  const annualizedPct = borrowAmount > 0 && dte > 0 ? (total / borrowAmount) * (365 / dte) * 100 : 0;
 
   return (
-    <div className="rounded-xl border border-gray-700 bg-gray-900 p-5">
-      <h3 className="mb-3 text-sm font-semibold text-white">Fee breakdown</h3>
+    <div>
+      <h3 className="mb-3 text-sm font-semibold text-white">
+        Fee breakdown
+        <Tooltip content={`Adds ~${annualizedPct.toFixed(3)}% annualized to your effective rate on a $${borrowAmount.toLocaleString()} box (${dte} DTE).`} />
+      </h3>
       <div className="space-y-1.5 text-sm">
         <div className="flex justify-between"><span className="text-gray-400">Commission (4 legs x ${fees.commission.toFixed(2)})</span><span className="text-white">${commissionTotal.toFixed(2)}</span></div>
         <div className="flex justify-between"><span className="text-gray-400">Exchange fees (CBOE SPX)</span><span className="text-white">${exchangeTotal.toFixed(2)}</span></div>
@@ -25,9 +29,6 @@ export function FeeBreakdown({ fees, contracts, borrowAmount, dte }: FeeBreakdow
           <span className="text-gray-300">Total fees</span>
           <span className="text-white">${total.toFixed(2)}</span>
         </div>
-      </div>
-      <div className="mt-2 text-xs text-gray-600">
-        Adds ~{annualizedPct.toFixed(3)}% annualized to your effective rate on a ${borrowAmount.toLocaleString()} box ({dte} DTE).
       </div>
     </div>
   );

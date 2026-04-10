@@ -12,13 +12,14 @@ export function Tooltip({ content, children }: TooltipProps) {
 
   return (
     <span className="relative inline-block">
-      <button
-        onClick={() => setOpen(!open)}
+      <span
+        onMouseEnter={() => setOpen(true)}
+        onMouseLeave={() => setOpen(false)}
         className="ml-1 cursor-help border-b border-dotted border-gray-500 text-xs text-gray-500"
         aria-label="More info"
       >
         {children ?? "ⓘ"}
-      </button>
+      </span>
       {open && (
         <span className="absolute bottom-full left-1/2 z-10 mb-2 w-64 -translate-x-1/2 rounded-lg border border-gray-700 bg-gray-800 px-3 py-2 text-xs text-gray-300 shadow-lg">
           {content}

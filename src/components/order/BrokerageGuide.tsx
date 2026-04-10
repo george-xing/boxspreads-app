@@ -57,6 +57,25 @@ export function BrokerageGuide({ brokerage, expiry, limitPrice }: BrokerageGuide
       ) : (
         <GenericGuide brokerage={brokerage} />
       )}
+
+      <div className="mt-4 space-y-3">
+        <h3 className="text-sm font-semibold text-white">Pre-submit checklist</h3>
+        <div className="space-y-1.5 text-sm text-gray-300">
+          <div>☐ All 4 legs match the table above</div>
+          <div>☐ Net effect shows as <span className="text-green-400">credit</span> (you receive money)</div>
+          <div>☐ Margin impact is small (&lt; $10K for Portfolio Margin)</div>
+          <div>☐ Expiration is a standard monthly, not a weekly (SPXW)</div>
+          <div>☐ Order type is LMT at the limit price shown above</div>
+        </div>
+        <p className="border-l-2 border-orange-700 pl-3 text-xs text-orange-400">
+          <strong>Double-check:</strong> A reversed buy/sell on any leg turns
+          this from a defined-risk box into a naked options position.
+        </p>
+        <p className="border-l-2 border-blue-700 pl-3 text-xs text-blue-400">
+          <strong>Fill tip:</strong> Box spreads often fill within a few hours.
+          If no fill in 24h, raise the limit price by $1–2.
+        </p>
+      </div>
     </div>
   );
 }

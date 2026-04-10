@@ -27,7 +27,7 @@ export default function RootLayout({
       <body
         className={`${inter.className} bg-gray-950 text-gray-100 antialiased`}
       >
-        <nav className="mx-auto flex max-w-2xl items-center justify-between px-4 py-4">
+        <nav className="mx-auto flex max-w-screen-2xl items-center justify-between px-4 py-4">
           <Link href="/" className="text-sm font-semibold text-white">
             boxspreads.app
           </Link>
@@ -36,7 +36,7 @@ export default function RootLayout({
             <Link href="/learn" className="hover:text-gray-300">Learn</Link>
           </div>
         </nav>
-        <main className="mx-auto max-w-2xl px-4 py-12">{children}</main>
+        <main className="mx-auto max-w-screen-2xl px-4 py-12">{children}</main>
       </body>
     </html>
   );

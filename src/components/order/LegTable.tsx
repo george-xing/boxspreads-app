@@ -12,7 +12,7 @@ export function LegTable({ legs, expiry }: LegTableProps) {
   });
 
   return (
-    <div className="overflow-hidden rounded-xl border border-gray-700 bg-gray-900">
+    <div className="overflow-x-auto rounded-xl border border-gray-700 bg-gray-900">
       <div className="grid grid-cols-[40px_1fr_80px_60px_80px] border-b border-gray-800 px-4 py-2.5 text-xs uppercase tracking-wide text-gray-600">
         <div>Leg</div>
         <div>Contract</div>
