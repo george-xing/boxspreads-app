@@ -289,17 +289,19 @@ export function Calculator() {
         </div>
       )}
 
-      <BrokerageCTA selected={selectedBrokerage} onSelect={setSelectedBrokerage} />
+      <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-4">
+        <BrokerageCTA selected={selectedBrokerage} onSelect={setSelectedBrokerage} />
 
-      {selectedBrokerage && order && (
-        <div className="rounded-xl border border-gray-300 bg-white p-5">
-          <BrokerageGuide
-            brokerage={selectedBrokerage}
-            expiry={selectedExpiry}
-            limitPrice={order.limitPrice}
-          />
-        </div>
-      )}
+        {selectedBrokerage && order && (
+          <div className="border-t border-gray-200 pt-4">
+            <BrokerageGuide
+              brokerage={selectedBrokerage}
+              expiry={selectedExpiry}
+              limitPrice={order.limitPrice}
+            />
+          </div>
+        )}
+      </div>
     </div>
   );
 }
