@@ -237,11 +237,17 @@ export function Calculator() {
             />
           </div>
 
-          <div className="border-t border-gray-200 pt-4">
-            <div className="text-center">
-              <div className="text-4xl font-extrabold text-green-600 tabular-nums">{formatPct(afterTaxRate)}</div>
-              <div className="mt-1 text-xs font-medium text-gray-500">after-tax effective rate</div>
-              <div className="text-sm text-gray-500 mt-0.5 tabular-nums">{formatPct(allInRate)} pre-tax</div>
+          <div className="border-t border-gray-200 pt-3">
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Rates</div>
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-600">Pre-tax rate</span>
+                <span className="text-sm font-semibold tabular-nums text-gray-900">{formatPct(allInRate)}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-sm font-medium text-gray-600">After-tax effective rate</span>
+                <span className="text-base font-bold tabular-nums text-green-600">{formatPct(afterTaxRate)}</span>
+              </div>
             </div>
 
             <div className="mt-3 rounded-lg bg-gray-50 border border-gray-200 p-3">
