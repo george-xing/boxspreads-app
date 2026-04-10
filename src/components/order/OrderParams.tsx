@@ -13,7 +13,7 @@ export function OrderParams({ spreadWidth, limitPrice, contracts }: OrderParamsP
 
   return (
     <div>
-      <h3 className="mb-3 text-sm font-semibold text-white">Order parameters</h3>
+      <h3 className="mb-3 text-sm font-semibold text-gray-900">Order parameters</h3>
       <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
         {[
           { label: "Order type", value: "Limit (combo order)" },
@@ -24,8 +24,8 @@ export function OrderParams({ spreadWidth, limitPrice, contracts }: OrderParamsP
           { label: "Implied interest", value: `$${interestCost.toLocaleString()}`, highlight: "orange" },
         ].map(({ label, value, highlight }) => (
           <div key={label}>
-            <div className="text-xs uppercase tracking-wide text-gray-600">{label}</div>
-            <div className={`mt-1 text-base ${highlight === "green" ? "text-green-400" : highlight === "orange" ? "text-orange-400" : "text-white"}`}>
+            <div className="text-xs uppercase tracking-wide text-gray-400">{label}</div>
+            <div className={`mt-1 text-base ${highlight === "green" ? "text-green-600" : highlight === "orange" ? "text-orange-600" : "text-gray-900"}`}>
               {value}
             </div>
           </div>

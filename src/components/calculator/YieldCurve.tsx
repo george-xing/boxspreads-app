@@ -27,12 +27,7 @@ function shortLabel(label: string): string {
   return `${month} '${year}`;
 }
 
-export function YieldCurve({
-  expirations,
-  selectedExpiry,
-  onSelect,
-  boxRates,
-}: YieldCurveProps) {
+export function YieldCurve({ expirations, selectedExpiry, onSelect, boxRates }: YieldCurveProps) {
   if (expirations.length === 0) return null;
 
   const points = expirations.map((exp) => ({
@@ -45,7 +40,6 @@ export function YieldCurve({
   const maxRate = Math.max(...rates);
   const range = maxRate - minRate || 0.005;
   const padded = range * 0.2;
-
   const yMin = minRate - padded;
   const yMax = maxRate + padded;
 
@@ -62,7 +56,6 @@ export function YieldCurve({
   }
 
   const polyline = points.map((p) => `${xForDte(p.dte)},${yForRate(p.boxRate)}`).join(" ");
-
   const yTicks = [yMin, (yMin + yMax) / 2, yMax];
 
   const labelStep = Math.max(1, Math.floor(points.length / 5));
@@ -73,108 +66,46 @@ export function YieldCurve({
   return (
     <div>
       <div className="mb-2">
-        <span className="text-xs uppercase tracking-widest text-gray-500">
+        <span className="text-xs uppercase tracking-widest text-gray-400">
           Estimated borrowing rate by expiration
         </span>
       </div>
-      <svg
-        viewBox={`0 0 ${CHART_W} ${CHART_H}`}
-        className="w-full h-full"
-        preserveAspectRatio="xMidYMid meet"
-      >
-        {/* Grid */}
-        <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={CHART_H - PAD_B} stroke="#1f2937" />
-        <line x1={PAD_L} y1={CHART_H - PAD_B} x2={CHART_W - PAD_R} y2={CHART_H - PAD_B} stroke="#1f2937" />
+      <svg viewBox={`0 0 ${CHART_W} ${CHART_H}`} className="w-full h-full" preserveAspectRatio="xMidYMid meet">
+        <line x1={PAD_L} y1={PAD_T} x2={PAD_L} y2={CHART_H - PAD_B} stroke="#e5e7eb" />
+        <line x1={PAD_L} y1={CHART_H - PAD_B} x2={CHART_W - PAD_R} y2={CHART_H - PAD_B} stroke="#e5e7eb" />
 
-        {/* Y-axis ticks */}
         {yTicks.map((tick) => (
           <g key={tick}>
-            <line
-              x1={PAD_L}
-              y1={yForRate(tick)}
-              x2={CHART_W - PAD_R}
-              y2={yForRate(tick)}
-              stroke="#1f2937"
-              strokeWidth={0.5}
-              strokeDasharray="4"
-            />
-            <text
-              x={PAD_L - 4}
-              y={yForRate(tick) + 3}
-              fill="#4b5563"
-              fontSize={7}
-              textAnchor="end"
-            >
-              {formatPct(tick)}
-            </text>
+            <line x1={PAD_L} y1={yForRate(tick)} x2={CHART_W - PAD_R} y2={yForRate(tick)} stroke="#f3f4f6" strokeWidth={0.5} />
+            <text x={PAD_L - 4} y={yForRate(tick) + 3} fill="#9ca3af" fontSize={7} textAnchor="end">{formatPct(tick)}</text>
           </g>
         ))}
 
-        {/* Box spread line */}
-        <polyline points={polyline} fill="none" stroke="#4ade80" strokeWidth={2} />
+        <polyline points={polyline} fill="none" stroke="#16a34a" strokeWidth={2} />
 
-        {/* Data points */}
         {points.map((p) => {
           const isSelected = p.date === selectedExpiry;
           const cx = xForDte(p.dte);
           const cy = yForRate(p.boxRate);
-
           return (
-            <g
-              key={p.date}
-              onClick={() => onSelect(p.date)}
-              className="cursor-pointer"
-            >
+            <g key={p.date} onClick={() => onSelect(p.date)} className="cursor-pointer">
               {isSelected && (
-                <line
-                  x1={cx}
-                  y1={cy}
-                  x2={cx}
-                  y2={CHART_H - PAD_B}
-                  stroke="#22c55e"
-                  strokeWidth={1}
-                  strokeDasharray="3"
-                />
+                <line x1={cx} y1={cy} x2={cx} y2={CHART_H - PAD_B} stroke="#16a34a" strokeWidth={1} strokeDasharray="3" />
               )}
               <circle cx={cx} cy={cy} r={12} fill="transparent" />
-              <circle
-                cx={cx}
-                cy={cy}
-                r={isSelected ? 5 : 3}
-                fill="#4ade80"
-                stroke={isSelected ? "#0f1117" : "none"}
-                strokeWidth={isSelected ? 2 : 0}
-              />
+              <circle cx={cx} cy={cy} r={isSelected ? 5 : 3} fill="#16a34a" stroke={isSelected ? "white" : "none"} strokeWidth={isSelected ? 2 : 0} />
               {isSelected && (
-                <text
-                  x={cx}
-                  y={cy - 9}
-                  fill="#22c55e"
-                  fontSize={8}
-                  textAnchor="middle"
-                  fontWeight={700}
-                >
-                  {formatPct(p.boxRate)}
-                </text>
+                <text x={cx} y={cy - 9} fill="#16a34a" fontSize={8} textAnchor="middle" fontWeight={700}>{formatPct(p.boxRate)}</text>
               )}
             </g>
           );
         })}
 
-        {/* X-axis labels */}
         {points.map((p, i) => {
           if (!labelIndices.has(i)) return null;
           const isSelected = p.date === selectedExpiry;
           return (
-            <text
-              key={`label-${p.date}`}
-              x={xForDte(p.dte)}
-              y={CHART_H - 6}
-              fill={isSelected ? "#22c55e" : "#6b7280"}
-              fontSize={isSelected ? 8 : 7}
-              textAnchor="middle"
-              fontWeight={isSelected ? 600 : 400}
-            >
+            <text key={`label-${p.date}`} x={xForDte(p.dte)} y={CHART_H - 6} fill={isSelected ? "#16a34a" : "#9ca3af"} fontSize={isSelected ? 8 : 7} textAnchor="middle" fontWeight={isSelected ? 600 : 400}>
               {shortLabel(p.label)}
             </text>
           );

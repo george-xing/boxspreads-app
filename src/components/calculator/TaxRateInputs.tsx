@@ -52,7 +52,7 @@ function TaxField({
         onChange={handleChange}
         onFocus={() => { setFocused(true); setLocalValue(displayValue.toString()); }}
         onBlur={handleBlur}
-        className="w-12 rounded border border-gray-700 bg-gray-800 px-1.5 py-1 text-center text-xs text-gray-300 outline-none focus:border-gray-500"
+        className="w-12 rounded border border-gray-300 bg-white px-1.5 py-1 text-center text-xs text-gray-700 outline-none focus:border-green-500"
       />
       <span>%</span>
     </label>

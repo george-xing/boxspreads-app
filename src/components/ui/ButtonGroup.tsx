@@ -20,8 +20,8 @@ export function ButtonGroup<T extends string>({
 }: ButtonGroupProps<T>) {
   const activeClass =
     color === "green"
-      ? "border-green-600 bg-green-900/30 text-green-400 font-semibold"
-      : "border-blue-600 bg-blue-900/30 text-blue-400 font-semibold";
+      ? "border-green-500 bg-green-50 text-green-700 font-semibold"
+      : "border-blue-500 bg-blue-50 text-blue-700 font-semibold";
 
   return (
     <div className="flex gap-2">
@@ -32,7 +32,7 @@ export function ButtonGroup<T extends string>({
           className={`flex-1 rounded-lg border px-3 py-2.5 text-sm transition-colors ${
             value === opt.value
               ? activeClass
-              : "border-gray-700 bg-gray-900 text-gray-400 hover:border-gray-600"
+              : "border-gray-300 bg-white text-gray-500 hover:border-gray-400"
           }`}
         >
           {opt.label}

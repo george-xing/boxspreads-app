@@ -16,12 +16,8 @@ const BROKERAGES: { value: Brokerage; label: string; available: boolean }[] = [
 export function BrokerageCTA({ selected, onSelect }: BrokerageCTAProps) {
   return (
     <div>
-      <div className="mb-1 text-sm font-semibold text-white">
-        Enter this order at your brokerage
-      </div>
-      <div className="mb-3 text-xs text-gray-500">
-        Step-by-step guide with your exact order values
-      </div>
+      <div className="mb-1 text-sm font-semibold text-gray-900">Enter this order at your brokerage</div>
+      <div className="mb-3 text-xs text-gray-400">Step-by-step guide with your exact order values</div>
       <div className="flex flex-col md:flex-row gap-2">
         {BROKERAGES.map(({ value, label, available }) => (
           <button
@@ -30,17 +26,17 @@ export function BrokerageCTA({ selected, onSelect }: BrokerageCTAProps) {
             disabled={!available}
             className={`flex-1 rounded-lg border px-4 py-2.5 text-left text-sm font-semibold transition-colors ${
               selected === value
-                ? "border-green-500 bg-green-950/20 text-white"
+                ? "border-green-500 bg-green-50 text-gray-900"
                 : available
-                  ? "border-gray-600 bg-gray-800 text-white hover:border-green-500"
-                  : "border-gray-700 bg-gray-800/50 text-gray-600 cursor-not-allowed"
+                  ? "border-gray-300 bg-white text-gray-900 hover:border-green-500"
+                  : "border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed"
             }`}
           >
             {label}
             {available ? (
-              <span className="ml-2 text-gray-500">→</span>
+              <span className="ml-2 text-gray-400">→</span>
             ) : (
-              <span className="ml-2 text-xs font-normal text-gray-600">soon</span>
+              <span className="ml-2 text-xs font-normal text-gray-400">soon</span>
             )}
           </button>
         ))}

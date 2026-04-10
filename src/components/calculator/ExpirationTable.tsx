@@ -17,16 +17,12 @@ interface ExpirationTableProps {
 
 export type { ExpirationRow };
 
-export function ExpirationTable({
-  rows,
-  selectedExpiry,
-  onSelect,
-}: ExpirationTableProps) {
+export function ExpirationTable({ rows, selectedExpiry, onSelect }: ExpirationTableProps) {
   return (
     <div className="max-h-[180px] overflow-y-auto">
       <table className="w-full text-sm">
-        <thead className="sticky top-0 bg-gray-800">
-          <tr className="border-b border-gray-700 text-left text-xs uppercase tracking-widest text-gray-500">
+        <thead className="sticky top-0 bg-white">
+          <tr className="border-b border-gray-200 text-left text-xs uppercase tracking-widest text-gray-400">
             <th className="px-4 py-2">Expiration</th>
             <th className="px-3 py-2 text-right">DTE</th>
             <th className="px-3 py-2 text-right">Est. Rate</th>
@@ -41,17 +37,13 @@ export function ExpirationTable({
                 onClick={() => onSelect(row.date)}
                 className={`cursor-pointer border-l-2 transition-colors ${
                   isSelected
-                    ? "border-l-green-500 bg-green-950/20 text-white"
-                    : "border-l-transparent text-gray-300 hover:bg-gray-800/50"
+                    ? "border-l-green-500 bg-green-50 text-gray-900"
+                    : "border-l-transparent text-gray-600 hover:bg-gray-50"
                 }`}
               >
-                <td className={`px-4 py-1.5 ${isSelected ? "font-semibold" : ""}`}>
-                  {row.label}
-                </td>
-                <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">
-                  {row.dte}
-                </td>
-                <td className={`px-3 py-1.5 text-right tabular-nums ${isSelected ? "text-green-400 font-semibold" : ""}`}>
+                <td className={`px-4 py-1.5 ${isSelected ? "font-semibold" : ""}`}>{row.label}</td>
+                <td className="px-3 py-1.5 text-right tabular-nums text-gray-400">{row.dte}</td>
+                <td className={`px-3 py-1.5 text-right tabular-nums ${isSelected ? "text-green-600 font-semibold" : ""}`}>
                   {formatPct(row.boxRate)}
                 </td>
               </tr>

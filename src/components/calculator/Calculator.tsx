@@ -43,8 +43,8 @@ const FEES = BROKERAGE_FEES.ibkr;
 export function Calculator() {
   const mounted = useSyncExternalStore(
     () => () => {},
-    () => true,   // client
-    () => false,  // server
+    () => true,
+    () => false,
   );
 
   // ── State ──
@@ -109,7 +109,6 @@ export function Calculator() {
   const taxSavings = interestCost * blendedTax;
   const afterTaxCost = interestCost - taxSavings;
 
-  // ── Curve + table data (no amount dependency) ──
   const boxRatesMap = useMemo(() => {
     const map: Record<string, number> = {};
     for (const exp of expirations) {
@@ -128,7 +127,6 @@ export function Calculator() {
     }));
   }, [expirations, boxRatesMap]);
 
-  // ── Order ──
   const order = selectedExpiry && snappedWidth > 0 ? (() => {
     const lower = Math.floor(CURRENT_SPX / 500) * 500;
     const upper = lower + snappedWidth;
@@ -140,7 +138,7 @@ export function Calculator() {
   // ── Handlers ──
   function handleStrikeWidthChange(width: number) {
     setStrikeWidth(width);
-    setUserMidPrice(null); // width change invalidates mid price
+    setUserMidPrice(null);
   }
 
   function handleContractsChange(qty: number) {
@@ -155,7 +153,7 @@ export function Calculator() {
 
   function handleMidPriceChange(mid: number) {
     const snapped = snapPrice(mid);
-    if (snapped <= 0 || snapped >= snappedWidth) return; // reject invalid
+    if (snapped <= 0 || snapped >= snappedWidth) return;
     setUserMidPrice(snapped);
   }
 
@@ -163,14 +161,13 @@ export function Calculator() {
     setUserMidPrice(null);
   }
 
-  // ── Render ──
   if (!mounted) {
     return (
       <div className="text-center py-20">
-        <h1 className="text-3xl font-bold tracking-tight text-white">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
           Borrow at near-Treasury rates
         </h1>
-        <p className="mt-2 text-gray-500">SPX box spread calculator</p>
+        <p className="mt-2 text-gray-400">SPX box spread calculator</p>
       </div>
     );
   }
@@ -178,23 +175,21 @@ export function Calculator() {
   return (
     <div className="space-y-4">
       <div className="text-center">
-        <h1 className="text-3xl font-bold tracking-tight text-white">
+        <h1 className="text-3xl font-bold tracking-tight text-gray-900">
           Borrow at near-Treasury rates
         </h1>
-        <p className="mt-2 text-gray-500">SPX box spread calculator</p>
+        <p className="mt-2 text-gray-400">SPX box spread calculator</p>
       </div>
 
       {ratesError && (
-        <div className="rounded-lg border border-yellow-800 bg-yellow-900/10 px-3 py-2 text-xs text-yellow-500">
+        <div className="rounded-lg border border-yellow-300 bg-yellow-50 px-3 py-2 text-xs text-yellow-700">
           Using fallback rates — live Treasury data unavailable
         </div>
       )}
 
-      {/* ── Two-column grid ── */}
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-4">
-
-        {/* LEFT: Chart + Table */}
-        <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 flex flex-col">
+        {/* LEFT */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4 flex flex-col shadow-sm">
           <div className="flex-1 min-h-[200px]">
             <YieldCurve
               expirations={expirations}
@@ -203,7 +198,7 @@ export function Calculator() {
               boxRates={boxRatesMap}
             />
           </div>
-          <div className="border-t border-gray-700 pt-3 mt-3">
+          <div className="border-t border-gray-200 pt-3 mt-3">
             <ExpirationTable
               rows={tableRows}
               selectedExpiry={selectedExpiry}
@@ -212,17 +207,15 @@ export function Calculator() {
           </div>
         </div>
 
-        {/* RIGHT: Calculator */}
-        <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 space-y-3">
-
-          {/* Configure */}
-          <div className="text-xs uppercase tracking-widest text-gray-500">Configure</div>
+        {/* RIGHT */}
+        <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-3 shadow-sm">
+          <div className="text-xs uppercase tracking-widest text-gray-400">Configure</div>
 
           <div className="flex items-center justify-between">
-            <span className="text-sm text-gray-400">Expiration</span>
-            <span className="text-sm text-white">
+            <span className="text-sm text-gray-500">Expiration</span>
+            <span className="text-sm text-gray-900">
               {selectedExp?.label ?? ""}{" "}
-              <span className="text-gray-500">({dte}d)</span>
+              <span className="text-gray-400">({dte}d)</span>
             </span>
           </div>
 
@@ -237,11 +230,8 @@ export function Calculator() {
             onContractsChange={handleContractsChange}
           />
 
-          {/* Tax inputs */}
-          <div className="border-t border-gray-700 pt-3">
-            <div className="mb-2 text-xs uppercase tracking-widest text-gray-500">
-              Tax rates
-            </div>
+          <div className="border-t border-gray-200 pt-3">
+            <div className="mb-2 text-xs uppercase tracking-widest text-gray-400">Tax rates</div>
             <TaxRateInputs
               federalRate={federalTaxRate}
               stateRate={stateTaxRate}
@@ -250,28 +240,23 @@ export function Calculator() {
             />
           </div>
 
-          {/* Rate + after-tax summary */}
-          <div className="border-t border-gray-700 pt-4">
+          <div className="border-t border-gray-200 pt-4">
             <div className="text-center">
-              <div className="text-4xl font-bold text-green-400">{formatPct(afterTaxRate)}</div>
-              <div className="mt-1 text-xs text-gray-500">
-                after-tax effective rate
-              </div>
-              <div className="text-sm text-gray-500 mt-1">
-                {formatPct(allInRate)} pre-tax
-              </div>
+              <div className="text-4xl font-bold text-green-600">{formatPct(afterTaxRate)}</div>
+              <div className="mt-1 text-xs text-gray-400">after-tax effective rate</div>
+              <div className="text-sm text-gray-400 mt-1">{formatPct(allInRate)} pre-tax</div>
             </div>
 
-            <div className="mt-3 rounded-lg bg-gray-900 p-3">
-              <div className="text-sm text-gray-200">
-                <strong className="text-white">Borrow {formatDollars(borrowAmount)} today</strong>,
+            <div className="mt-3 rounded-lg bg-gray-50 p-3">
+              <div className="text-sm text-gray-700">
+                <strong className="text-gray-900">Borrow {formatDollars(borrowAmount)} today</strong>,
                 repay {formatDollars(repayment)} on {selectedExp?.label ?? ""}.
                 {" "}Interest cost:{" "}
-                <span className="text-orange-400">{formatDollars(interestCost)}</span>.
+                <span className="text-orange-600">{formatDollars(interestCost)}</span>.
                 {" "}Tax savings:{" "}
-                <span className="text-green-400">{formatDollars(taxSavings)}</span>.
+                <span className="text-green-600">{formatDollars(taxSavings)}</span>.
                 {" "}After-tax cost:{" "}
-                <span className="text-green-400 font-semibold">{formatDollars(afterTaxCost)}</span>.
+                <span className="text-green-600 font-semibold">{formatDollars(afterTaxCost)}</span>.
                 <Tooltip content={`Section 1256: 60% long-term capital loss (${formatPct(ltcg)}) + 40% short-term (${formatPct(federalTaxRate)})${stateTaxRate > 0 ? ` + ${formatPct(stateTaxRate)} state` : ""}. Tax savings assume you have capital gains to offset.`} />
               </div>
             </div>
@@ -279,18 +264,15 @@ export function Calculator() {
         </div>
       </div>
 
-      {/* ── Order section ── */}
       {order && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4 space-y-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 space-y-4 shadow-sm">
           <div className="flex items-center gap-2">
-            <h2 className="text-lg font-bold text-white">Your Order</h2>
+            <h2 className="text-lg font-bold text-gray-900">Your Order</h2>
             <Tooltip content={`These strikes are illustrative, based on SPX ~${CURRENT_SPX.toLocaleString()}. When entering your order, select strikes near the current SPX level with high open interest. The rate and cost are the same regardless of which strikes you choose — only liquidity differs.`} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div>
-              <LegTable legs={order.legs} expiry={selectedExpiry} />
-            </div>
+            <div><LegTable legs={order.legs} expiry={selectedExpiry} /></div>
             <div>
               <OrderParams
                 spreadWidth={order.spreadWidth}
@@ -310,11 +292,10 @@ export function Calculator() {
         </div>
       )}
 
-      {/* ── Brokerage CTA ── */}
       <BrokerageCTA selected={selectedBrokerage} onSelect={setSelectedBrokerage} />
 
       {selectedBrokerage && order && (
-        <div className="rounded-xl border border-gray-700 bg-gray-800/50 p-4">
+        <div className="rounded-xl border border-gray-200 bg-white p-4 shadow-sm">
           <BrokerageGuide
             brokerage={selectedBrokerage}
             expiry={selectedExpiry}
