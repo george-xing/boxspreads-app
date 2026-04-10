@@ -227,6 +227,12 @@ export function Calculator() {
             onContractsChange={handleContractsChange}
           />
 
+          {!isUserOverride && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2 text-xs text-blue-700">
+              These rates are estimated from Treasury yields + 30bps spread. For accurate pricing, check the SPX option chain at your brokerage and enter the actual mid price above.
+            </div>
+          )}
+
           <div className="border-t border-gray-200 pt-3">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Tax rates</div>
             <TaxRateInputs
