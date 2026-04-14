@@ -7,6 +7,9 @@ export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const amount = Number(searchParams.get("amount"));
   const expiry = searchParams.get("expiry");
+  const rawSpot = Number(searchParams.get("spot"));
+  const spot =
+    rawSpot > 0 && Number.isFinite(rawSpot) ? rawSpot : CURRENT_SPX;
 
   if (!amount || amount <= 0 || !Number.isFinite(amount)) {
     return NextResponse.json({ error: "Invalid amount" }, { status: 400 });
@@ -16,7 +19,7 @@ export async function GET(request: Request) {
   }
 
   const contracts = 1;
-  const { lower, upper } = selectStrikes(amount, contracts, CURRENT_SPX);
+  const { lower, upper } = selectStrikes(amount, contracts, spot);
   const width = upper - lower;
   const dte = calcDte(expiry);
 
