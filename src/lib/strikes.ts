@@ -1,10 +1,11 @@
-import type { Tenor, BoxLeg } from "./types";
+import type { Tenor, BoxLeg, Expiration } from "./types";
 import { SPX_MULTIPLIER, TENORS } from "./constants";
 
 export function calcSpreadWidth(
   borrowAmount: number,
   contracts: number
 ): number {
+  if (contracts <= 0 || !Number.isFinite(contracts)) return 0;
   return borrowAmount / (SPX_MULTIPLIER * contracts);
 }
 
@@ -47,20 +48,22 @@ export function findNearestExpiry(tenor: Tenor, from: Date): string {
 }
 
 /**
- * Build the 4 legs of a short box spread (borrowing).
- * Short box = bear call spread + bull put spread.
- * You receive net credit (cash) now and owe spread width at expiry.
+ * Build the 4 legs of a box spread.
+ * Short box (borrow) = bear call spread + bull put spread. You receive net credit now.
+ * Long box (lend) = bull call spread + bear put spread. You pay net debit now.
  */
 export function buildBoxLegs(
   lowerStrike: number,
   upperStrike: number,
-  expiry: string
+  expiry: string,
+  direction: "borrow" | "lend" = "borrow"
 ): [BoxLeg, BoxLeg, BoxLeg, BoxLeg] {
+  const isBorrow = direction === "borrow";
   return [
-    { strike: lowerStrike, type: "call", action: "sell", expiry },
-    { strike: upperStrike, type: "call", action: "buy", expiry },
-    { strike: lowerStrike, type: "put", action: "buy", expiry },
-    { strike: upperStrike, type: "put", action: "sell", expiry },
+    { strike: lowerStrike, type: "call", action: isBorrow ? "sell" : "buy", expiry },
+    { strike: upperStrike, type: "call", action: isBorrow ? "buy" : "sell", expiry },
+    { strike: lowerStrike, type: "put", action: isBorrow ? "buy" : "sell", expiry },
+    { strike: upperStrike, type: "put", action: isBorrow ? "sell" : "buy", expiry },
   ];
 }
 
@@ -73,4 +76,48 @@ export function calcDte(expiry: string, from: Date = new Date()): number {
   const expiryMs = Date.UTC(ey, em - 1, ed);
   const fromMs = Date.UTC(from.getUTCFullYear(), from.getUTCMonth(), from.getUTCDate());
   return Math.round((expiryMs - fromMs) / (1000 * 60 * 60 * 24));
+}
+
+function formatDateLabel(date: Date): string {
+  const months = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+  return `${months[date.getMonth()]} ${date.getDate()}, ${date.getFullYear()}`;
+}
+
+function formatIso(date: Date): string {
+  const y = date.getFullYear();
+  const m = String(date.getMonth() + 1).padStart(2, "0");
+  const d = String(date.getDate()).padStart(2, "0");
+  return `${y}-${m}-${d}`;
+}
+
+/**
+ * Generate all available SPX expiration dates from a reference date.
+ * - Monthly: next 15 months
+ * - Quarterly (Mar/Jun/Sep/Dec): 15-36 months
+ * - Annual (Dec only): 36-72 months
+ * Filters out expirations < 7 DTE.
+ */
+export function generateSpxExpirations(from: Date): Expiration[] {
+  const quarterly = new Set([2, 5, 8, 11]); // Mar, Jun, Sep, Dec (0-indexed)
+  const results: Expiration[] = [];
+
+  for (let monthsOut = 0; monthsOut <= 72; monthsOut++) {
+    const targetMonth = (from.getMonth() + monthsOut) % 12;
+    const targetYear = from.getFullYear() + Math.floor((from.getMonth() + monthsOut) / 12);
+
+    // >36 months: Dec only
+    if (monthsOut > 36 && targetMonth !== 11) continue;
+    // >15 months: quarterly only
+    if (monthsOut > 15 && !quarterly.has(targetMonth)) continue;
+
+    const expiry = thirdFriday(targetYear, targetMonth);
+    const iso = formatIso(expiry);
+    const dte = calcDte(iso, from);
+
+    if (dte >= 7) {
+      results.push({ date: iso, dte, label: formatDateLabel(expiry) });
+    }
+  }
+
+  return results;
 }

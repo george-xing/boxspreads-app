@@ -2,6 +2,14 @@ export type Tenor = "3M" | "6M" | "1Y" | "2Y" | "3Y" | "5Y";
 
 export type Brokerage = "ibkr" | "fidelity" | "schwab";
 
+export type Direction = "borrow" | "lend";
+
+export interface Expiration {
+  date: string;   // ISO date, e.g. "2027-12-19"
+  dte: number;    // days to expiration
+  label: string;  // display label, e.g. "Dec 19, 2027"
+}
+
 export type OptionType = "call" | "put";
 export type OrderAction = "buy" | "sell";
 
