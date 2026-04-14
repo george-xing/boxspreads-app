@@ -35,10 +35,18 @@ import {
   SPX_MULTIPLIER,
 } from "@/lib/constants";
 import type { Brokerage, TreasuryRates } from "@/lib/types";
+import type { BoxRateResult } from "@/lib/boxrate";
 import { formatPct, formatDollars } from "@/lib/format";
 
 const CURRENT_SPX = 5500;
 const FEES = BROKERAGE_FEES.ibkr;
+
+interface SchwabChainsResponse {
+  underlying: number | null;
+  expirations: BoxRateResult[];
+  stale: boolean;
+  fallback: boolean;
+}
 
 export function Calculator() {
   const mounted = useSyncExternalStore(
@@ -56,6 +64,7 @@ export function Calculator() {
 
   const [treasuryRates, setTreasuryRates] = useState<TreasuryRates>({});
   const [ratesError, setRatesError] = useState(false);
+  const [schwabChains, setSchwabChains] = useState<SchwabChainsResponse | null>(null);
 
   const [expirations] = useState(() => generateSpxExpirations(new Date()));
   const [selectedExpiry, setSelectedExpiry] = useState(() => {
@@ -77,7 +86,40 @@ export function Calculator() {
         }
       })
       .catch(() => setRatesError(true));
+
+    fetch("/api/schwab/chains")
+      .then((r) => (r.ok ? r.json() : null))
+      .then((data: SchwabChainsResponse | null) => {
+        if (data && !data.fallback && data.expirations.length > 0) {
+          setSchwabChains(data);
+        }
+      })
+      .catch(() => {
+        // Silent fallback — Treasury estimate still works.
+      });
   }, []);
+
+  // Match chain expirations to our SPX expiration calendar within a 3-day window.
+  const liveByDate = useMemo(() => {
+    const map = new Map<string, BoxRateResult>();
+    if (!schwabChains) return map;
+    for (const exp of expirations) {
+      const target = Date.parse(exp.date);
+      let best: BoxRateResult | null = null;
+      let bestDiff = Infinity;
+      for (const live of schwabChains.expirations) {
+        const diff = Math.abs(Date.parse(live.date) - target);
+        if (diff < bestDiff) {
+          bestDiff = diff;
+          best = live;
+        }
+      }
+      if (best && bestDiff <= 3 * 86400 * 1000) map.set(exp.date, best);
+    }
+    return map;
+  }, [schwabChains, expirations]);
+
+  const liveSpot = schwabChains?.underlying ?? null;
 
   const selectedExp = expirations.find((e) => e.date === selectedExpiry);
   const dte = selectedExp?.dte ?? 365;
@@ -89,7 +131,11 @@ export function Calculator() {
   const blendedTax = Math.min(1, calcBlendedTaxRate(ltcg, clampedFederal, clampedState));
 
   const treasuryYield = interpolateTreasuryYield(dte, treasuryRates);
-  const estimatedRate = calcBoxRateSimple(treasuryYield, DEFAULT_SPREAD_BPS);
+  const selectedLive = liveByDate.get(selectedExpiry) ?? null;
+  // Prefer Schwab live rate for this expiration; fall back to Treasury + spread.
+  const estimatedRate = selectedLive
+    ? selectedLive.rate
+    : calcBoxRateSimple(treasuryYield, DEFAULT_SPREAD_BPS);
 
   const snappedWidth = snapStrikeWidth(strikeWidth);
 
@@ -110,11 +156,16 @@ export function Calculator() {
   const boxRatesMap = useMemo(() => {
     const map: Record<string, number> = {};
     for (const exp of expirations) {
-      const ty = interpolateTreasuryYield(exp.dte, treasuryRates);
-      map[exp.date] = calcBoxRateSimple(ty, DEFAULT_SPREAD_BPS);
+      const live = liveByDate.get(exp.date);
+      if (live) {
+        map[exp.date] = live.rate;
+      } else {
+        const ty = interpolateTreasuryYield(exp.dte, treasuryRates);
+        map[exp.date] = calcBoxRateSimple(ty, DEFAULT_SPREAD_BPS);
+      }
     }
     return map;
-  }, [expirations, treasuryRates]);
+  }, [expirations, treasuryRates, liveByDate]);
 
   const tableRows: ExpirationRow[] = useMemo(() => {
     return expirations.map((exp) => ({
@@ -126,7 +177,8 @@ export function Calculator() {
   }, [expirations, boxRatesMap]);
 
   const order = selectedExpiry && snappedWidth > 0 ? (() => {
-    const lower = Math.floor(CURRENT_SPX / 500) * 500;
+    const spot = liveSpot ?? CURRENT_SPX;
+    const lower = Math.floor(spot / 500) * 500;
     const upper = lower + snappedWidth;
     const legs = buildBoxLegs(lower, upper, selectedExpiry, "borrow");
     const limitPrice = calcMidFromRate(activeRate, snappedWidth, dte);
@@ -230,7 +282,9 @@ export function Calculator() {
           <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
             {isUserOverride
               ? "Rates reflect your entered mid price."
-              : "These rates are estimates based on Treasury yields + 30bps spread. To get your actual rate: build the 4-leg order in your brokerage using the guide below \u2014 the order preview will show the net credit per contract. Enter that as the mid price above."
+              : selectedLive
+                ? `${schwabChains?.stale ? "Closing" : "Live"} rates from Schwab option chain: ${selectedLive.lower}/${selectedLive.upper} box. Strike width above is independent of Schwab's observed pair.`
+                : "These rates are estimates based on Treasury yields + 30bps spread. To get your actual rate: build the 4-leg order in your brokerage using the guide below \u2014 the order preview will show the net credit per contract. Enter that as the mid price above."
             }
           </div>
 
@@ -280,7 +334,7 @@ export function Calculator() {
         <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-gray-900">Your Order</h2>
-            <Tooltip content={`These strikes are illustrative, based on SPX ~${CURRENT_SPX.toLocaleString()}. When entering your order, check your brokerage's option chain for strikes with high open interest near the current SPX level. Use round numbers (e.g. 5000, 5500, 6000). The rate is the same regardless of strikes — only liquidity differs.`} />
+            <Tooltip content={`These strikes are anchored to SPX ~${(liveSpot ?? CURRENT_SPX).toLocaleString()}${liveSpot ? " (live from Schwab)" : ""}. When entering your order, check your brokerage's option chain for strikes with high open interest near the current SPX level. Use round numbers (e.g. 5000, 5500, 6000). The rate is the same regardless of strikes — only liquidity differs.`} />
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
