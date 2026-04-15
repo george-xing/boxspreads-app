@@ -14,7 +14,6 @@ import { LegTable } from "@/components/order/LegTable";
 import { OrderParams } from "@/components/order/OrderParams";
 import { FeeBreakdown } from "@/components/order/FeeBreakdown";
 import { BrokerageGuide } from "@/components/order/BrokerageGuide";
-import { buildBoxLegs } from "@/lib/strikes";
 import {
   calcBoxRateSimple,
   calcBlendedTaxRate,
@@ -131,11 +130,6 @@ export function Calculator() {
       boxRate: boxRatesMap[exp.date] ?? 0,
     }));
   }, [expirations, boxRatesMap]);
-
-  /* ── illustrative legs for LegTable ───────────────────── */
-  const illustrativeLegs = selectedCandidate
-    ? buildBoxLegs(selectedCandidate.lowerStrike, selectedCandidate.upperStrike, selectedExpiry, "borrow")
-    : [];
 
   /* ── handlers ─────────────────────────────────────────── */
   function handleExpiryChange(expiry: string) {
@@ -400,7 +394,7 @@ export function Calculator() {
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div><LegTable legs={illustrativeLegs} expiry={selectedExpiry} /></div>
+            <div><LegTable liveLegs={selectedCandidate.legs} expiry={selectedExpiry} /></div>
             <div>
               <OrderParams
                 spreadWidth={selectedCandidate.strikeWidth}
@@ -424,7 +418,6 @@ export function Calculator() {
       {isConnected && selectedCandidate && (
         <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-4">
           <BrokerageGuide
-            brokerage="schwab"
             expiry={selectedExpiry}
             limitPrice={selectedCandidate.boxCredit}
           />
