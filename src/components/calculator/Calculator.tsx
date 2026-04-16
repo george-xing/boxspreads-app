@@ -301,7 +301,7 @@ export function Calculator() {
               boxRates={boxRatesMap}
             />
           </div>
-          <div className="border-t border-gray-200 pt-3 mt-2">
+          <div className="border-t border-gray-200 pt-3 mt-2 flex-1 min-h-0 flex flex-col">
             <ExpirationTable
               rows={tableRows}
               selectedExpiry={selectedExpiry}

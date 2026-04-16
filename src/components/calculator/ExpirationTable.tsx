@@ -26,7 +26,7 @@ export function ExpirationTable({ rows, selectedExpiry, onSelect }: ExpirationTa
   }, [selectedExpiry]);
 
   return (
-    <div className="max-h-[180px] overflow-y-auto">
+    <div className="flex-1 min-h-0 overflow-y-auto">
       <table className="w-full text-sm">
         <thead className="sticky top-0 bg-white">
           <tr className="border-b border-gray-200 text-left text-[11px] font-semibold uppercase tracking-widest text-gray-500">

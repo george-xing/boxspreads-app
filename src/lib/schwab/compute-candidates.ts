@@ -12,10 +12,11 @@ const LIQUIDITY_MULTIPLIER = 10;      // minOI must be ≥ contracts × 10
 const TOP_N = 5;
 const LIQUIDITY_PENALTY_WEIGHT = 0.02;
 const SPREAD_PENALTY_WEIGHT = 0.5;
-const MIN_STRIKE_WIDTH = 500;         // Minimum practical box width (pts). Matches boxtrades.com
-                                      // convention. Narrower widths have wider relative spreads and
-                                      // worse fills. Multiples of 500 at round-number strikes (5000,
-                                      // 5500, 6000, etc.) have the deepest liquidity.
+const MIN_STRIKE_WIDTH = 500;         // Minimum practical box width (pts).
+const STRIKE_ROUND = 500;            // Only pair strikes at round-number multiples. SPX box traders
+                                      // exclusively use multiples of 500 (5000, 5500, 6000, …).
+                                      // Non-round strikes have wider spreads and no realistic OI for
+                                      // 4-leg combos. Matches the boxtrades.com convention.
 // NOTE: We intentionally do NOT floor on openInterest. Schwab zeroes OI
 // after hours (the overnight update hasn't run), but totalVolume can be
 // thousands. The per-candidate muting logic (minOI < contracts × 10)
@@ -26,6 +27,8 @@ function bucket(chain: ChainSnapshot) {
   const puts = new Map<number, ChainContract>();
   for (const c of chain.contracts) {
     if (c.optionRoot !== "SPX" || c.settlementType !== "AM") continue;
+    // Only keep round-number strikes (multiples of STRIKE_ROUND)
+    if (c.strike % STRIKE_ROUND !== 0) continue;
     if (c.type === "CALL") calls.set(c.strike, c);
     else puts.set(c.strike, c);
   }
