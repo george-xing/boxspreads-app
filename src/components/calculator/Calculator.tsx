@@ -290,10 +290,10 @@ export function Calculator() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5 items-start">
         {/* ── LEFT: yield curve + expiration table ──────── */}
-        <div className="rounded-xl border border-gray-300 bg-white p-5 flex flex-col">
-          <div className="min-h-[180px]">
+        <div className="rounded-xl border border-gray-300 bg-white p-5 flex flex-col max-h-[600px]">
+          <div className="min-h-[180px] shrink-0">
             <YieldCurve
               expirations={expirations}
               selectedExpiry={selectedExpiry}
