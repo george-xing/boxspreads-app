@@ -15,9 +15,25 @@ vi.mock("@/lib/schwab/connections", () => ({
   deleteConnection: mockDelete,
 }));
 
-const mockMakeClient = vi.hoisted(() => vi.fn());
+// ETM stub. `refresh` is what client.ts calls to force an initial refresh;
+// `getAccessToken` is what downstream callers will hit via the SchwabSession.
+const { mockRefresh, mockGetAccessToken, FakeETM } = vi.hoisted(() => {
+  const mockRefresh = vi.fn();
+  const mockGetAccessToken = vi.fn();
+  class FakeETM {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    constructor(public opts: any) {}
+    refresh(...args: unknown[]) { return mockRefresh(...args); }
+    getAccessToken() { return mockGetAccessToken(); }
+  }
+  return { mockRefresh, mockGetAccessToken, FakeETM };
+});
 vi.mock("@sudowealth/schwab-api", () => ({
-  createApiClient: (...args: unknown[]) => mockMakeClient(...args),
+  EnhancedTokenManager: FakeETM,
+}));
+
+vi.mock("@/lib/supabase", () => ({
+  supabase: { from: () => ({ update: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }) }) },
 }));
 
 import { getSchwabClientForRequest } from "@/lib/schwab/client";
@@ -33,7 +49,8 @@ describe("getSchwabClientForRequest", () => {
   beforeEach(() => {
     mockFind.mockReset();
     mockDelete.mockReset();
-    mockMakeClient.mockReset();
+    mockRefresh.mockReset();
+    mockGetAccessToken.mockReset();
     (verifySessionCookie as ReturnType<typeof vi.fn>).mockReset();
     process.env.SCHWAB_APP_KEY = "test-app-key";
     process.env.SCHWAB_APP_SECRET = "test-app-secret";
@@ -56,7 +73,7 @@ describe("getSchwabClientForRequest", () => {
     expect(await getSchwabClientForRequest(r)).toBeNull();
   });
 
-  it("builds a client when connection exists", async () => {
+  it("returns a SchwabSession when connection exists and refresh succeeds", async () => {
     (verifySessionCookie as ReturnType<typeof vi.fn>).mockReturnValueOnce("sess-1");
     mockFind.mockResolvedValueOnce({
       session_id: "sess-1",
@@ -64,12 +81,16 @@ describe("getSchwabClientForRequest", () => {
       connected_at: "2026-04-15T00:00:00Z",
       last_refreshed_at: null,
     });
-    const fakeClient = { marketData: { options: { getOptionChain: vi.fn() } } };
-    mockMakeClient.mockReturnValueOnce(fakeClient);
+    mockRefresh.mockResolvedValueOnce({ accessToken: "a1", refreshToken: "r1", expiresAt: Date.now() + 1800_000 });
+    mockGetAccessToken.mockResolvedValueOnce("a1");
+
     const r = makeRequest("boxspreads_session=sess-1.mac");
-    const client = await getSchwabClientForRequest(r);
-    expect(client).toBe(fakeClient);
-    expect(mockMakeClient).toHaveBeenCalled();
+    const session = await getSchwabClientForRequest(r);
+
+    expect(session).not.toBeNull();
+    expect(mockRefresh).toHaveBeenCalledWith("r1", { force: true });
+    const token = await session!.getAccessToken();
+    expect(token).toBe("a1");
   });
 
   it("deletes the row and returns null on invalid_grant from refresh", async () => {
@@ -80,11 +101,25 @@ describe("getSchwabClientForRequest", () => {
       connected_at: "2026-04-01T00:00:00Z",
       last_refreshed_at: null,
     });
-    mockMakeClient.mockImplementationOnce(() => {
-      throw new Error("invalid_grant");
-    });
+    mockRefresh.mockRejectedValueOnce(new Error("invalid_grant"));
+
     const r = makeRequest("boxspreads_session=sess-1.mac");
     expect(await getSchwabClientForRequest(r)).toBeNull();
     expect(mockDelete).toHaveBeenCalledWith("sess-1");
+  });
+
+  it("rethrows non-auth errors (so /status returns 503, not silent disconnect)", async () => {
+    (verifySessionCookie as ReturnType<typeof vi.fn>).mockReturnValueOnce("sess-1");
+    mockFind.mockResolvedValueOnce({
+      session_id: "sess-1",
+      refresh_token: "r1",
+      connected_at: "2026-04-15T00:00:00Z",
+      last_refreshed_at: null,
+    });
+    mockRefresh.mockRejectedValueOnce(new Error("network down"));
+
+    const r = makeRequest("boxspreads_session=sess-1.mac");
+    await expect(getSchwabClientForRequest(r)).rejects.toThrow(/network down/);
+    expect(mockDelete).not.toHaveBeenCalled();
   });
 });
