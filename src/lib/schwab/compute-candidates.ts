@@ -42,22 +42,20 @@ function candidateFor(
   upperPut: ChainContract,
   target: number,
   dte: number,
-  isAfterHours: boolean,
 ): Candidate | null {
   const strikeWidth = upperCall.strike - lowerCall.strike;
   if (strikeWidth < MIN_STRIKE_WIDTH) return null;
 
-  // After-hours: use mark (midpoint / last session close) for credit
-  // computation instead of bid/ask. After-hours bid/ask spreads on SPX
-  // can be $25+ per leg, producing absurd annualized rates (100%+).
-  // Mark prices reflect the last traded midpoint, giving a realistic
-  // ~4% rate — matching what boxtrades.com shows after close.
+  // Always use mark (midpoint) for rate computation, matching
+  // boxtrades.com convention. During market hours, mark ≈ mid of tight
+  // bid/ask, so the rate is close to the executable rate. After hours,
+  // mark reflects the last session midpoint rather than the wide
+  // after-hours bid/ask (which would produce 70%+ annualized rates on
+  // a 29d box).
   //
-  // During market hours: use bid/ask for the credit formula because
-  // that's what you'd actually fill at (worst-case executable rate).
-  const boxCredit = isAfterHours
-    ? (lowerCall.mark - upperCall.mark) + (upperPut.mark - lowerPut.mark)
-    : (lowerCall.bid - upperCall.ask) + (upperPut.bid - lowerPut.ask);
+  // The actual bid/ask per leg is shown in the LegTable for execution.
+  const boxCredit =
+    (lowerCall.mark - upperCall.mark) + (upperPut.mark - lowerPut.mark);
   if (boxCredit <= 0) return null;
 
   const contracts = Math.max(
@@ -87,8 +85,7 @@ function candidateFor(
   const muted = minOI < liquidityThreshold;
 
   const liquidityPenalty = muted ? LIQUIDITY_PENALTY_WEIGHT : 0;
-  // After-hours: zero out spread penalty (mark-to-mark has zero spread by definition)
-  const spreadPenalty = isAfterHours ? 0 : (spreadWidth / boxCredit) * SPREAD_PENALTY_WEIGHT;
+  const spreadPenalty = (spreadWidth / boxCredit) * SPREAD_PENALTY_WEIGHT;
   const score = rate - liquidityPenalty - spreadPenalty;
 
   // Short box = borrow. The credit formula above computes net credit from:
@@ -133,7 +130,7 @@ export function computeCandidates(
       const uc = calls.get(upper)!;
       const lp = puts.get(lower)!;
       const up = puts.get(upper)!;
-      const cand = candidateFor(lc, uc, lp, up, target, chain.dte, chain.isAfterHours);
+      const cand = candidateFor(lc, uc, lp, up, target, chain.dte);
       if (cand) found.push(cand);
     }
   }
