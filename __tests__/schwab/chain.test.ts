@@ -3,6 +3,7 @@ import { fetchChainSnapshot, __resetChainCacheForTests } from "@/lib/schwab/chai
 import type { SchwabSession } from "@/lib/schwab/client";
 
 // Shape of Schwab's /marketdata/v1/chains response (minimal fixture).
+// Uses raw Schwab REST API field names (bid/ask/mark, NOT bidPrice/askPrice/markPrice).
 const makeRawResponse = () => ({
   underlying: { symbol: "$SPX", last: 5782.1, mark: 5782.1 },
   callExpDateMap: {
@@ -10,12 +11,11 @@ const makeRawResponse = () => ({
       "5500.0": [{
         symbol: "SPX 270219C05500000",
         strikePrice: 5500,
-        bidPrice: 300.1,
-        askPrice: 300.8,
-        markPrice: 300.45,
+        bid: 300.1,
+        ask: 300.8,
+        mark: 300.45,
+        closePrice: 299.80,
         openInterest: 1240,
-        // Schwab's real API returns "A" for AM-settled. Our normalizer
-        // coerces both "A" and "AM" to canonical "AM".
         settlementType: "A",
         optionRoot: "SPX",
         daysToExpiration: 301,
@@ -27,9 +27,10 @@ const makeRawResponse = () => ({
       "5500.0": [{
         symbol: "SPX 270219P05500000",
         strikePrice: 5500,
-        bidPrice: 44,
-        askPrice: 44.6,
-        markPrice: 44.3,
+        bid: 44,
+        ask: 44.6,
+        mark: 44.3,
+        closePrice: 43.95,
         openInterest: 1250,
         settlementType: "A",
         optionRoot: "SPX",
@@ -133,11 +134,11 @@ describe("fetchChainSnapshot", () => {
           "5500.0": [{
             symbol: "SPX 270219C05500000",
             strikePrice: 5500,
-            markPrice: 300,
+            mark: 300,      // raw API field name
             openInterest: 1000,
             settlementType: "A",
             optionRoot: "SPX",
-            // no bidPrice or askPrice
+            // no bid or ask
           }],
         },
       },
@@ -160,7 +161,7 @@ describe("fetchChainSnapshot", () => {
           "5500.0": [{
             symbol: "SPX 270219C05500000",
             strikePrice: 5500,
-            // no bidPrice, askPrice, OR markPrice
+            // no bid, ask, mark, closePrice, or last
             openInterest: 1000,
             settlementType: "A",
             optionRoot: "SPX",

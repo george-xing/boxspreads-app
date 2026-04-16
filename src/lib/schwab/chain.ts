@@ -11,24 +11,32 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
+// Separate "last known good" cache — stores the most recent market-hours
+// snapshot per expiration. Schwab blanks ALL option prices after hours
+// (bid, ask, AND mark all become undefined), so we serve this stale
+// snapshot with isAfterHours: true rather than showing "no data."
+const lastKnownCache = new Map<string, ChainSnapshot>();
+
 export function __resetChainCacheForTests(): void {
   cache.clear();
+  lastKnownCache.clear();
 }
 
 function cacheKey(expiration: string): string {
   return `chain:${expiration}`;
 }
 
-// Schwab's SPX option chain response shape. Intentionally narrow — we only
-// read the fields we need for box-spread math. Using `unknown` + structural
-// access avoids coupling to the SDK's Zod schema, which rejects some real
-// responses (e.g. exchangeName: "Index" for $SPX).
+// Schwab's raw REST API field names. These differ from the SDK's Zod-renamed
+// names (the SDK uses bidPrice/askPrice/markPrice; the raw API uses bid/ask/mark).
+// Since we bypass the SDK for market data, we use the raw names here.
 type SchwabContract = {
   symbol?: string;
   strikePrice?: number;
-  bidPrice?: number;
-  askPrice?: number;
-  markPrice?: number;
+  bid?: number;          // raw API: "bid" (NOT "bidPrice")
+  ask?: number;          // raw API: "ask" (NOT "askPrice")
+  mark?: number;         // raw API: "mark" (NOT "markPrice")
+  last?: number;         // last traded price
+  closePrice?: number;   // previous session close
   openInterest?: number;
   settlementType?: string;
   optionRoot?: string;
@@ -79,9 +87,10 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
             strike: c.strikePrice ?? Number(strikeKey),
             type,
             symbol: c.symbol ?? "",
-            bid: c.bidPrice ?? null,
-            ask: c.askPrice ?? null,
-            mark: c.markPrice ?? null,
+            // Raw Schwab API: "bid"/"ask"/"mark" (not "bidPrice"/"askPrice"/"markPrice").
+            bid: c.bid ?? null,
+            ask: c.ask ?? null,
+            mark: c.mark ?? c.closePrice ?? c.last ?? null,
             openInterest: c.openInterest ?? 0,
             settlementType:
               c.settlementType === "A" || c.settlementType === "AM" ? "AM" : "PM",
