@@ -12,6 +12,11 @@ const LIQUIDITY_MULTIPLIER = 10;      // minOI must be ≥ contracts × 10
 const TOP_N = 5;
 const LIQUIDITY_PENALTY_WEIGHT = 0.02;
 const SPREAD_PENALTY_WEIGHT = 0.5;
+const MIN_STRIKE_WIDTH = 250;         // Minimum practical box width (pts). SPX trades at $25 increments
+                                      // but 25pt-wide boxes have near-zero OI and stale quotes. Real
+                                      // box trades use 500pt–2000pt widths.
+const MIN_OI_FLOOR = 1;              // Drop candidates where ALL 4 legs have 0 open interest — these
+                                      // are phantom quotes from market makers, not tradeable strikes.
 
 function bucket(chain: ChainSnapshot) {
   const calls = new Map<number, ChainContract>();
@@ -35,12 +40,18 @@ function candidateFor(
   target: number,
   dte: number,
 ): Candidate | null {
+  const strikeWidth = upperCall.strike - lowerCall.strike;
+  if (strikeWidth < MIN_STRIKE_WIDTH) return null;
+
+  // Drop phantom quotes: if every leg has 0 OI, this isn't a real market.
+  const totalOI =
+    lowerCall.openInterest + upperCall.openInterest +
+    lowerPut.openInterest + upperPut.openInterest;
+  if (totalOI < MIN_OI_FLOOR) return null;
+
   const boxCredit =
     (lowerCall.bid - upperCall.ask) + (upperPut.bid - lowerPut.ask);
   if (boxCredit <= 0) return null;
-
-  const strikeWidth = upperCall.strike - lowerCall.strike;
-  if (strikeWidth <= 0) return null;
 
   const contracts = Math.max(
     1,
