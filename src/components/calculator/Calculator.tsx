@@ -349,6 +349,7 @@ export function Calculator() {
               selected={selectedCandidate}
               onSelect={setSelectedCandidate}
               reason={chainData?.reason}
+              isAfterHours={chainData?.isAfterHours}
             />
           )}
 

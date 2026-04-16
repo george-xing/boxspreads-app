@@ -125,7 +125,7 @@ describe("fetchChainSnapshot", () => {
     expect(globalThis.fetch).toHaveBeenCalledTimes(2);
   });
 
-  it("skips contracts with no bid or ask", async () => {
+  it("uses mark as synthetic bid/ask when all contracts lack bid/ask (after-hours)", async () => {
     mockFetch(() => ({
       underlying: { symbol: "$SPX", last: 5782, mark: 5782 },
       callExpDateMap: {
@@ -137,6 +137,7 @@ describe("fetchChainSnapshot", () => {
             openInterest: 1000,
             settlementType: "A",
             optionRoot: "SPX",
+            // no bidPrice or askPrice
           }],
         },
       },
@@ -144,6 +145,33 @@ describe("fetchChainSnapshot", () => {
     }));
 
     const snap = await fetchChainSnapshot(makeSession({ n: 0 }), "2027-02-19");
+    expect(snap.isAfterHours).toBe(true);
+    expect(snap.contracts.length).toBe(1);
+    // mark used as both bid and ask
+    expect(snap.contracts[0].bid).toBe(300);
+    expect(snap.contracts[0].ask).toBe(300);
+  });
+
+  it("skips contracts with no bid/ask AND no mark (truly no data)", async () => {
+    mockFetch(() => ({
+      underlying: { symbol: "$SPX", last: 5782, mark: 5782 },
+      callExpDateMap: {
+        "2027-02-19:301": {
+          "5500.0": [{
+            symbol: "SPX 270219C05500000",
+            strikePrice: 5500,
+            // no bidPrice, askPrice, OR markPrice
+            openInterest: 1000,
+            settlementType: "A",
+            optionRoot: "SPX",
+          }],
+        },
+      },
+      putExpDateMap: {},
+    }));
+
+    const snap = await fetchChainSnapshot(makeSession({ n: 0 }), "2027-02-19");
+    expect(snap.isAfterHours).toBe(true);
     expect(snap.contracts.length).toBe(0);
   });
 

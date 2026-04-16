@@ -120,13 +120,20 @@ export function computeCandidates(
   }
 
   if (found.length === 0) {
+    // Distinguish "chain was empty / no contracts survived the normalizer"
+    // from "contracts exist but nothing matched the target borrow."
+    const reason =
+      chain.contracts.length === 0
+        ? "no_active_quotes"
+        : "min_credit_exceeds_target";
     return {
       underlying: chain.underlying,
       expiration: chain.expiration,
       candidates: [],
       selected: null,
       asOf: chain.asOf,
-      reason: "min_credit_exceeds_target",
+      reason,
+      isAfterHours: chain.isAfterHours,
     };
   }
 
@@ -143,5 +150,6 @@ export function computeCandidates(
     selected: top[0],
     asOf: chain.asOf,
     reason,
+    isAfterHours: chain.isAfterHours,
   };
 }

@@ -30,6 +30,10 @@ export interface ChainSnapshot {
   dte: number;
   contracts: ChainContract[];
   asOf: string;             // ISO timestamp
+  /** True when no contracts had live bid/ask (markets closed) and we fell
+   *  back to mark (closing) prices. Candidates computed from mark prices
+   *  are indicative only — not executable until market reopens. */
+  isAfterHours: boolean;
 }
 
 export interface ChainContract {
@@ -47,6 +51,7 @@ export interface ChainContract {
 export type CandidatesReason =
   | "min_credit_exceeds_target"
   | "thin_liquidity"
+  | "no_active_quotes"
   | null;
 
 export interface CandidatesResponse {
@@ -56,4 +61,7 @@ export interface CandidatesResponse {
   selected: Candidate | null;
   asOf: string;
   reason: CandidatesReason;
+  /** Mirrors ChainSnapshot.isAfterHours — true when candidates are
+   *  computed from closing prices, not live bid/ask. */
+  isAfterHours: boolean;
 }

@@ -51,6 +51,20 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
     mark: raw.underlying?.mark ?? raw.underlyingPrice ?? 0,
   };
 
+  // First pass: collect all contracts, tracking whether ANY have live bid/ask.
+  interface RawEntry {
+    strike: number;
+    type: "CALL" | "PUT";
+    symbol: string;
+    bid: number | null;
+    ask: number | null;
+    mark: number | null;
+    openInterest: number;
+    settlementType: "AM" | "PM";
+    optionRoot: string;
+  }
+  const allEntries: RawEntry[] = [];
+
   for (const type of ["CALL", "PUT"] as const) {
     const mapKey = type === "CALL" ? "callExpDateMap" : "putExpDateMap";
     const byExp = raw[mapKey] ?? {};
@@ -61,18 +75,14 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
       const byStrike = byExp[expKey];
       for (const strikeKey of Object.keys(byStrike)) {
         for (const c of byStrike[strikeKey]) {
-          // Skip contracts without both bid and ask — can't price a box leg without a two-sided market.
-          if (c.bidPrice == null || c.askPrice == null) continue;
-          contracts.push({
+          allEntries.push({
             strike: c.strikePrice ?? Number(strikeKey),
             type,
             symbol: c.symbol ?? "",
-            bid: c.bidPrice,
-            ask: c.askPrice,
-            mark: c.markPrice ?? (c.bidPrice + c.askPrice) / 2,
+            bid: c.bidPrice ?? null,
+            ask: c.askPrice ?? null,
+            mark: c.markPrice ?? null,
             openInterest: c.openInterest ?? 0,
-            // Schwab returns "A" for AM-settled on $SPX; some docs say "AM".
-            // Coerce both to our canonical "AM"; anything else is "PM".
             settlementType:
               c.settlementType === "A" || c.settlementType === "AM" ? "AM" : "PM",
             optionRoot: c.optionRoot ?? "",
@@ -82,12 +92,54 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
     }
   }
 
+  // Detect after-hours: if ZERO entries have a real bid+ask (both > 0),
+  // but entries DO exist, markets are closed. Fall back to mark (closing)
+  // prices so the user still sees indicative candidates.
+  const hasLiveBidAsk = allEntries.some(
+    (e) => e.bid != null && e.ask != null && e.bid > 0 && e.ask > 0,
+  );
+  const isAfterHours = allEntries.length > 0 && !hasLiveBidAsk;
+
+  for (const e of allEntries) {
+    let bid = e.bid;
+    let ask = e.ask;
+
+    if (isAfterHours) {
+      // After-hours: use mark (closing/mid) as synthetic bid=ask so
+      // computeCandidates can produce indicative rates. The spread is
+      // zero in this mode, which is fine — we're not pretending there's
+      // a live market.
+      if (e.mark != null && e.mark > 0) {
+        bid = e.mark;
+        ask = e.mark;
+      } else {
+        continue; // no mark either — truly no data
+      }
+    } else {
+      // Market open: require real bid+ask
+      if (bid == null || ask == null || bid <= 0 || ask <= 0) continue;
+    }
+
+    contracts.push({
+      strike: e.strike,
+      type: e.type,
+      symbol: e.symbol,
+      bid,
+      ask,
+      mark: e.mark ?? (bid + ask) / 2,
+      openInterest: e.openInterest,
+      settlementType: e.settlementType,
+      optionRoot: e.optionRoot,
+    });
+  }
+
   return {
     underlying,
     expiration,
     dte,
     contracts,
     asOf: new Date().toISOString(),
+    isAfterHours,
   };
 }
 

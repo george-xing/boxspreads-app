@@ -3,6 +3,7 @@
   "expiration": "2027-02-19",
   "dte": 301,
   "asOf": "2026-04-15T18:30:00Z",
+  "isAfterHours": false,
   "contracts": [
     { "strike": 5000, "type": "CALL", "symbol": "SPX 270219C05000000", "bid": 845.10, "ask": 846.40, "mark": 845.75, "openInterest": 900, "settlementType": "AM", "optionRoot": "SPX" },
     { "strike": 5000, "type": "PUT",  "symbol": "SPX 270219P05000000", "bid":  55.00, "ask":  55.90, "mark":  55.45, "openInterest": 910, "settlementType": "AM", "optionRoot": "SPX" },
