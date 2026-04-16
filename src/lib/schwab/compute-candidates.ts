@@ -15,8 +15,10 @@ const SPREAD_PENALTY_WEIGHT = 0.5;
 const MIN_STRIKE_WIDTH = 250;         // Minimum practical box width (pts). SPX trades at $25 increments
                                       // but 25pt-wide boxes have near-zero OI and stale quotes. Real
                                       // box trades use 500pt–2000pt widths.
-const MIN_OI_FLOOR = 1;              // Drop candidates where ALL 4 legs have 0 open interest — these
-                                      // are phantom quotes from market makers, not tradeable strikes.
+// NOTE: We intentionally do NOT floor on openInterest. Schwab zeroes OI
+// after hours (the overnight update hasn't run), but totalVolume can be
+// thousands. The per-candidate muting logic (minOI < contracts × 10)
+// handles thin-OI discrimination during market hours.
 
 function bucket(chain: ChainSnapshot) {
   const calls = new Map<number, ChainContract>();
@@ -42,12 +44,6 @@ function candidateFor(
 ): Candidate | null {
   const strikeWidth = upperCall.strike - lowerCall.strike;
   if (strikeWidth < MIN_STRIKE_WIDTH) return null;
-
-  // Drop phantom quotes: if every leg has 0 OI, this isn't a real market.
-  const totalOI =
-    lowerCall.openInterest + upperCall.openInterest +
-    lowerPut.openInterest + upperPut.openInterest;
-  if (totalOI < MIN_OI_FLOOR) return null;
 
   const boxCredit =
     (lowerCall.bid - upperCall.ask) + (upperPut.bid - lowerPut.ask);
