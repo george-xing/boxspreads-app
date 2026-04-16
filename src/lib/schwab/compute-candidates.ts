@@ -12,9 +12,10 @@ const LIQUIDITY_MULTIPLIER = 10;      // minOI must be ≥ contracts × 10
 const TOP_N = 5;
 const LIQUIDITY_PENALTY_WEIGHT = 0.02;
 const SPREAD_PENALTY_WEIGHT = 0.5;
-const MIN_STRIKE_WIDTH = 250;         // Minimum practical box width (pts). SPX trades at $25 increments
-                                      // but 25pt-wide boxes have near-zero OI and stale quotes. Real
-                                      // box trades use 500pt–2000pt widths.
+const MIN_STRIKE_WIDTH = 500;         // Minimum practical box width (pts). Matches boxtrades.com
+                                      // convention. Narrower widths have wider relative spreads and
+                                      // worse fills. Multiples of 500 at round-number strikes (5000,
+                                      // 5500, 6000, etc.) have the deepest liquidity.
 // NOTE: We intentionally do NOT floor on openInterest. Schwab zeroes OI
 // after hours (the overnight update hasn't run), but totalVolume can be
 // thousands. The per-candidate muting logic (minOI < contracts × 10)
@@ -41,12 +42,22 @@ function candidateFor(
   upperPut: ChainContract,
   target: number,
   dte: number,
+  isAfterHours: boolean,
 ): Candidate | null {
   const strikeWidth = upperCall.strike - lowerCall.strike;
   if (strikeWidth < MIN_STRIKE_WIDTH) return null;
 
-  const boxCredit =
-    (lowerCall.bid - upperCall.ask) + (upperPut.bid - lowerPut.ask);
+  // After-hours: use mark (midpoint / last session close) for credit
+  // computation instead of bid/ask. After-hours bid/ask spreads on SPX
+  // can be $25+ per leg, producing absurd annualized rates (100%+).
+  // Mark prices reflect the last traded midpoint, giving a realistic
+  // ~4% rate — matching what boxtrades.com shows after close.
+  //
+  // During market hours: use bid/ask for the credit formula because
+  // that's what you'd actually fill at (worst-case executable rate).
+  const boxCredit = isAfterHours
+    ? (lowerCall.mark - upperCall.mark) + (upperPut.mark - lowerPut.mark)
+    : (lowerCall.bid - upperCall.ask) + (upperPut.bid - lowerPut.ask);
   if (boxCredit <= 0) return null;
 
   const contracts = Math.max(
@@ -76,7 +87,8 @@ function candidateFor(
   const muted = minOI < liquidityThreshold;
 
   const liquidityPenalty = muted ? LIQUIDITY_PENALTY_WEIGHT : 0;
-  const spreadPenalty = (spreadWidth / boxCredit) * SPREAD_PENALTY_WEIGHT;
+  // After-hours: zero out spread penalty (mark-to-mark has zero spread by definition)
+  const spreadPenalty = isAfterHours ? 0 : (spreadWidth / boxCredit) * SPREAD_PENALTY_WEIGHT;
   const score = rate - liquidityPenalty - spreadPenalty;
 
   // Short box = borrow. The credit formula above computes net credit from:
@@ -121,7 +133,7 @@ export function computeCandidates(
       const uc = calls.get(upper)!;
       const lp = puts.get(lower)!;
       const up = puts.get(upper)!;
-      const cand = candidateFor(lc, uc, lp, up, target, chain.dte);
+      const cand = candidateFor(lc, uc, lp, up, target, chain.dte, chain.isAfterHours);
       if (cand) found.push(cand);
     }
   }

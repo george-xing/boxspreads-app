@@ -293,7 +293,7 @@ export function Calculator() {
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5">
         {/* ── LEFT: yield curve + expiration table ──────── */}
         <div className="rounded-xl border border-gray-300 bg-white p-5 flex flex-col">
-          <div className="flex-1 min-h-[200px]">
+          <div className="min-h-[180px]">
             <YieldCurve
               expirations={expirations}
               selectedExpiry={selectedExpiry}
@@ -301,7 +301,7 @@ export function Calculator() {
               boxRates={boxRatesMap}
             />
           </div>
-          <div className="border-t border-gray-200 pt-3 mt-3">
+          <div className="border-t border-gray-200 pt-3 mt-2">
             <ExpirationTable
               rows={tableRows}
               selectedExpiry={selectedExpiry}
@@ -427,16 +427,14 @@ export function Calculator() {
             <Tooltip content="These strikes and prices come from the live Schwab option chain. The order below matches your selected candidate." />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
+          <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-5">
             <div><LegTable liveLegs={selectedCandidate.legs} expiry={selectedExpiry} /></div>
-            <div>
+            <div className="space-y-4">
               <OrderParams
                 spreadWidth={selectedCandidate.strikeWidth}
                 limitPrice={selectedCandidate.boxCredit}
                 contracts={selectedCandidate.contracts}
               />
-            </div>
-            <div>
               <FeeBreakdown
                 fees={FEES}
                 contracts={selectedCandidate.contracts}
