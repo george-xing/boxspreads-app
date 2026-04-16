@@ -72,11 +72,13 @@ describe("computeCandidates", () => {
     for (const c of result.candidates) {
       expect(c.legs).toHaveLength(4);
       const summary = c.legs.map((l) => `${l.action} ${l.type}@${l.strike}`).sort();
+      // Short box = borrow: sell lower call, buy upper call, buy lower put, sell upper put.
+      // This matches the credit formula: (lowerCall.bid − upperCall.ask) + (upperPut.bid − lowerPut.ask).
       expect(summary).toEqual([
-        `BUY CALL@${c.lowerStrike}`,
-        `BUY PUT@${c.upperStrike}`,
-        `SELL CALL@${c.upperStrike}`,
-        `SELL PUT@${c.lowerStrike}`,
+        `SELL CALL@${c.lowerStrike}`,
+        `BUY CALL@${c.upperStrike}`,
+        `BUY PUT@${c.lowerStrike}`,
+        `SELL PUT@${c.upperStrike}`,
       ].sort());
     }
   });

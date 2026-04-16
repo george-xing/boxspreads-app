@@ -72,11 +72,15 @@ function candidateFor(
   const spreadPenalty = (spreadWidth / boxCredit) * SPREAD_PENALTY_WEIGHT;
   const score = rate - liquidityPenalty - spreadPenalty;
 
+  // Short box = borrow. The credit formula above computes net credit from:
+  //   sell lower call (+bid) − buy upper call (−ask) + sell upper put (+bid) − buy lower put (−ask)
+  // Legs must mirror that directionality, otherwise the pasted order executes
+  // a long box (lend) at a DEBIT — the opposite trade.
   const legs: CandidateLeg[] = [
-    { action: "BUY",  type: "CALL", strike: lowerCall.strike, symbol: lowerCall.symbol, bid: lowerCall.bid, ask: lowerCall.ask, openInterest: lowerCall.openInterest },
-    { action: "SELL", type: "CALL", strike: upperCall.strike, symbol: upperCall.symbol, bid: upperCall.bid, ask: upperCall.ask, openInterest: upperCall.openInterest },
-    { action: "SELL", type: "PUT",  strike: lowerPut.strike,  symbol: lowerPut.symbol,  bid: lowerPut.bid,  ask: lowerPut.ask,  openInterest: lowerPut.openInterest },
-    { action: "BUY",  type: "PUT",  strike: upperPut.strike,  symbol: upperPut.symbol,  bid: upperPut.bid,  ask: upperPut.ask,  openInterest: upperPut.openInterest },
+    { action: "SELL", type: "CALL", strike: lowerCall.strike, symbol: lowerCall.symbol, bid: lowerCall.bid, ask: lowerCall.ask, openInterest: lowerCall.openInterest },
+    { action: "BUY",  type: "CALL", strike: upperCall.strike, symbol: upperCall.symbol, bid: upperCall.bid, ask: upperCall.ask, openInterest: upperCall.openInterest },
+    { action: "BUY",  type: "PUT",  strike: lowerPut.strike,  symbol: lowerPut.symbol,  bid: lowerPut.bid,  ask: lowerPut.ask,  openInterest: lowerPut.openInterest },
+    { action: "SELL", type: "PUT",  strike: upperPut.strike,  symbol: upperPut.symbol,  bid: upperPut.bid,  ask: upperPut.ask,  openInterest: upperPut.openInterest },
   ];
 
   return {

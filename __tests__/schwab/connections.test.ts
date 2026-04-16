@@ -12,6 +12,7 @@ import {
   upsertConnection,
   findConnection,
   deleteConnection,
+  deleteOtherConnections,
 } from "@/lib/schwab/connections";
 
 describe("schwab connections data-access", () => {
@@ -57,10 +58,29 @@ describe("schwab connections data-access", () => {
     expect(row).toBeNull();
   });
 
+  it("findConnection throws on non-PGRST116 errors (real DB failure)", async () => {
+    const single = vi.fn().mockResolvedValue({
+      data: null,
+      error: { code: "57P03", message: "server shutdown" },
+    });
+    mockFrom.mockReturnValue({
+      select: () => ({ eq: () => ({ single }) }),
+    });
+    await expect(findConnection("sess-1")).rejects.toThrow(/server shutdown/);
+  });
+
   it("deleteConnection calls delete by session_id", async () => {
     const eq = vi.fn().mockResolvedValue({ error: null });
     mockFrom.mockReturnValue({ delete: () => ({ eq }) });
     await deleteConnection("sess-1");
     expect(eq).toHaveBeenCalledWith("session_id", "sess-1");
+  });
+
+  it("deleteOtherConnections deletes all rows except the given session_id", async () => {
+    const neq = vi.fn().mockResolvedValue({ error: null });
+    mockFrom.mockReturnValue({ delete: () => ({ neq }) });
+    await deleteOtherConnections("keep-me");
+    expect(mockFrom).toHaveBeenCalledWith("schwab_connections");
+    expect(neq).toHaveBeenCalledWith("session_id", "keep-me");
   });
 });

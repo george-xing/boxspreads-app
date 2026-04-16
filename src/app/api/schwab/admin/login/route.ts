@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { upsertConnection } from "@/lib/schwab/connections";
+import { upsertConnection, deleteOtherConnections } from "@/lib/schwab/connections";
 import {
   SESSION_COOKIE_NAME,
   generateSessionId,
@@ -24,7 +24,12 @@ export async function POST(req: Request) {
   }
 
   const sessionId = generateSessionId();
+  // Write the new row first, then reap stale rows from prior admin logins.
+  // Ordering matters: if the reap succeeded but the upsert failed we'd be
+  // left with zero connections, forcing a re-auth even though the user did
+  // nothing wrong.
   await upsertConnection(sessionId, refreshToken);
+  await deleteOtherConnections(sessionId);
 
   const signed = signSessionId(sessionId, getSessionSecret());
   const cookie = [

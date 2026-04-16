@@ -13,13 +13,14 @@ export async function GET(req: Request) {
   const expiration = url.searchParams.get("expiration");
   const targetRaw = url.searchParams.get("target");
   const target = targetRaw ? Number(targetRaw) : NaN;
+  const force = url.searchParams.get("force") === "1";
 
   if (!expiration || !Number.isFinite(target) || target <= 0 || target > 10_000_000) {
     return NextResponse.json({ error: "invalid_params" }, { status: 400 });
   }
 
   try {
-    const snap = await fetchChainSnapshot(client, expiration);
+    const snap = await fetchChainSnapshot(client, expiration, { force });
     const result = computeCandidates(snap, target);
     return NextResponse.json(result, {
       headers: { "Cache-Control": "no-store" },

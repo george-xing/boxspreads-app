@@ -62,13 +62,22 @@ function normalize(raw: any, expiration: string): ChainSnapshot {
   };
 }
 
+export interface FetchChainOptions {
+  /** Bypass the in-memory cache and force a fresh Schwab call. Used by the
+   *  refresh button in the nav to show the user their action had an effect. */
+  force?: boolean;
+}
+
 export async function fetchChainSnapshot(
   client: { marketData: { options: { getOptionChain: (opts: unknown) => Promise<unknown> } } },
   expiration: string,
+  options: FetchChainOptions = {},
 ): Promise<ChainSnapshot> {
   const key = cacheKey(expiration);
-  const hit = cache.get(key);
-  if (hit && Date.now() - hit.fetchedAt < TTL_MS) return hit.snap;
+  if (!options.force) {
+    const hit = cache.get(key);
+    if (hit && Date.now() - hit.fetchedAt < TTL_MS) return hit.snap;
+  }
 
   const raw = await client.marketData.options.getOptionChain({
     queryParams: {

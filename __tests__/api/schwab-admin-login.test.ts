@@ -1,8 +1,10 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const mockUpsert = vi.fn();
+const mockDeleteOthers = vi.fn();
 vi.mock("@/lib/schwab/connections", () => ({
   upsertConnection: (...args: unknown[]) => mockUpsert(...args),
+  deleteOtherConnections: (...args: unknown[]) => mockDeleteOthers(...args),
 }));
 
 vi.mock("@/lib/session", async (orig) => {
@@ -26,6 +28,8 @@ function postWith(bodyJson: unknown): Request {
 describe("POST /api/schwab/admin/login", () => {
   beforeEach(() => {
     mockUpsert.mockReset();
+    mockDeleteOthers.mockReset();
+    mockDeleteOthers.mockResolvedValue(undefined);
     process.env.ADMIN_KEY = "correct-horse-battery-staple";
     process.env.SCHWAB_REFRESH_TOKEN = "env-refresh-token";
   });
@@ -53,5 +57,15 @@ describe("POST /api/schwab/admin/login", () => {
     const setCookie = res.headers.get("set-cookie");
     expect(setCookie).toMatch(/^boxspreads_session=/);
     expect(setCookie).toMatch(/HttpOnly/i);
+  });
+
+  it("reaps stale rows after a successful login — keeps only the new session", async () => {
+    mockUpsert.mockResolvedValueOnce(undefined);
+    await POST(postWith({ key: "correct-horse-battery-staple" }));
+    expect(mockDeleteOthers).toHaveBeenCalledTimes(1);
+    // The session_id passed to deleteOtherConnections must match the one passed to upsertConnection.
+    const upsertSessionId = mockUpsert.mock.calls[0][0];
+    const keepSessionId = mockDeleteOthers.mock.calls[0][0];
+    expect(keepSessionId).toBe(upsertSessionId);
   });
 });

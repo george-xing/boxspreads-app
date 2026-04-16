@@ -22,4 +22,12 @@ describe("GET /api/schwab/status", () => {
     const body = await res.json();
     expect(body).toEqual({ connected: true });
   });
+
+  it("returns 503 on operational errors (Supabase down, env broken) — does not flatten to disconnected", async () => {
+    mockGetClient.mockRejectedValueOnce(new Error("supabase unreachable"));
+    const res = await GET(new Request("http://x/api/schwab/status"));
+    expect(res.status).toBe(503);
+    const body = await res.json();
+    expect(body).toEqual({ error: "status_unavailable" });
+  });
 });

@@ -50,6 +50,12 @@ export function Calculator() {
 
   /* ── connection state ─────────────────────────────────── */
   const [connState, setConnState] = useState<ConnState>("loading");
+  // `statusError` is a separate signal from `disconnected` — it means the
+  // /status endpoint returned a 503 (operational failure), not that the
+  // user is actually unconnected. We still fall back to the disconnected
+  // UI, but surface a banner so outages don't masquerade as "please
+  // reconnect."
+  const [statusError, setStatusError] = useState(false);
   const isConnected = connState === "connected";
 
   /* ── target borrow ────────────────────────────────────── */
@@ -147,12 +153,23 @@ export function Calculator() {
   useEffect(() => {
     let cancelled = false;
     fetch("/api/schwab/status")
-      .then((r) => {
-        if (!r.ok) throw new Error("status check failed");
+      .then(async (r) => {
+        if (r.status === 503) {
+          // Operational failure on the server (e.g. Supabase unreachable).
+          // Degrade to disconnected UX but keep a banner up so users know
+          // this isn't a "you're not connected" situation.
+          if (!cancelled) {
+            setStatusError(true);
+            setConnState("disconnected");
+          }
+          return null;
+        }
+        if (!r.ok) throw new Error(`status check failed: ${r.status}`);
         return r.json();
       })
       .then((data) => {
-        if (cancelled) return;
+        if (cancelled || !data) return;
+        setStatusError(false);
         setConnState(data.connected ? "connected" : "disconnected");
       })
       .catch(() => {
@@ -163,19 +180,26 @@ export function Calculator() {
 
   /* ── effect: fetch treasury rates ─────────────────────── */
   useEffect(() => {
-    fetch("/api/rates/treasury")
+    let cancelled = false;
+    const controller = new AbortController();
+    fetch("/api/rates/treasury", { signal: controller.signal })
       .then((r) => {
         if (!r.ok) throw new Error("Failed to fetch");
         return r.json();
       })
       .then((data) => {
+        if (cancelled) return;
         if (data.error || Object.keys(data).length === 0) {
           setRatesError(true);
         } else {
           setTreasuryRates(data);
         }
       })
-      .catch(() => setRatesError(true));
+      .catch(() => { if (!cancelled) setRatesError(true); });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
   }, []);
 
   /* ── effect: fetch chain when connected ───────────────── */
@@ -190,7 +214,10 @@ export function Calculator() {
         expiration: selectedExpiry,
         target: String(targetBorrow),
       });
-      if (refreshKey > 0) params.set("t", String(refreshKey));
+      // refreshKey > 0 means the user clicked the nav refresh button; pass
+      // force=1 so the server bypasses its 5-min in-memory cache. Without
+      // this flag the button would be a no-op within the TTL window.
+      if (refreshKey > 0) params.set("force", "1");
 
       fetch(`/api/schwab/chain?${params}`, { signal: controller.signal })
         .then((r) => {
@@ -244,6 +271,12 @@ export function Calculator() {
 
       {/* ── connect banner (disconnected) ────────────────── */}
       {connState === "disconnected" && <ConnectBanner />}
+
+      {statusError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">
+          Temporary problem checking your Schwab connection — please try again in a moment.
+        </div>
+      )}
 
       {ratesError && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
