@@ -45,6 +45,7 @@ function candidateFor(
   upperPut: ChainContract,
   target: number,
   dte: number,
+  isAfterHours: boolean,
 ): Candidate | null {
   const strikeWidth = upperCall.strike - lowerCall.strike;
   if (strikeWidth < MIN_STRIKE_WIDTH) return null;
@@ -71,11 +72,18 @@ function candidateFor(
 
   const rate = ((strikeWidth - boxCredit) / boxCredit) * (365 / dte);
 
+  // Liquidity signal: openInterest during market hours, totalVolume after
+  // hours. Schwab zeroes openInterest after the close until the overnight
+  // update reposts it, so post-close every contract would otherwise look
+  // like minOI=0 → muted → 'thin_liquidity'. totalVolume reflects today's
+  // actual trading activity and is a faithful proxy until OI repopulates.
+  const liquidityField: "openInterest" | "totalVolume" =
+    isAfterHours ? "totalVolume" : "openInterest";
   const minOI = Math.min(
-    lowerCall.openInterest,
-    upperCall.openInterest,
-    lowerPut.openInterest,
-    upperPut.openInterest,
+    lowerCall[liquidityField],
+    upperCall[liquidityField],
+    lowerPut[liquidityField],
+    upperPut[liquidityField],
   );
 
   const spreadWidth =
@@ -133,7 +141,7 @@ export function computeCandidates(
       const uc = calls.get(upper)!;
       const lp = puts.get(lower)!;
       const up = puts.get(upper)!;
-      const cand = candidateFor(lc, uc, lp, up, target, chain.dte);
+      const cand = candidateFor(lc, uc, lp, up, target, chain.dte, chain.isAfterHours);
       if (cand) found.push(cand);
     }
   }

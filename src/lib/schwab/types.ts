@@ -44,6 +44,10 @@ export interface ChainContract {
   ask: number;
   mark: number;
   openInterest: number;
+  /** Total contracts traded in the current session. After hours Schwab
+   *  zeroes openInterest until the overnight update; totalVolume is the
+   *  only liquidity signal that survives the close. */
+  totalVolume: number;
   settlementType: "AM" | "PM";
   optionRoot: string;       // "SPX" | "SPXW"
 }

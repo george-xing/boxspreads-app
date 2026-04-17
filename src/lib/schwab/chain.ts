@@ -12,15 +12,8 @@ interface CacheEntry {
 
 const cache = new Map<string, CacheEntry>();
 
-// Separate "last known good" cache — stores the most recent market-hours
-// snapshot per expiration. Schwab blanks ALL option prices after hours
-// (bid, ask, AND mark all become undefined), so we serve this stale
-// snapshot with isAfterHours: true rather than showing "no data."
-const lastKnownCache = new Map<string, ChainSnapshot>();
-
 export function __resetChainCacheForTests(): void {
   cache.clear();
-  lastKnownCache.clear();
 }
 
 function cacheKey(expiration: string): string {
@@ -39,6 +32,7 @@ type SchwabContract = {
   last?: number;         // last traded price
   closePrice?: number;   // previous session close
   openInterest?: number;
+  totalVolume?: number;  // contracts traded this session
   settlementType?: string;
   optionRoot?: string;
   daysToExpiration?: number;
@@ -69,6 +63,7 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
     ask: number | null;
     mark: number | null;
     openInterest: number;
+    totalVolume: number;
     settlementType: "AM" | "PM";
     optionRoot: string;
   }
@@ -93,6 +88,7 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
             ask: c.ask ?? null,
             mark: c.mark ?? c.closePrice ?? c.last ?? null,
             openInterest: c.openInterest ?? 0,
+            totalVolume: c.totalVolume ?? 0,
             settlementType:
               c.settlementType === "A" || c.settlementType === "AM" ? "AM" : "PM",
             optionRoot: c.optionRoot ?? "",
@@ -144,6 +140,7 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
       ask,
       mark: e.mark ?? (bid + ask) / 2,
       openInterest: e.openInterest,
+      totalVolume: e.totalVolume,
       settlementType: e.settlementType,
       optionRoot: e.optionRoot,
     });
@@ -194,11 +191,14 @@ export async function fetchChainSnapshot(
   });
 
   if (!resp.ok) {
-    // Read body defensively so a non-JSON error page doesn't crash us.
-    const body = await resp.text().catch(() => "");
-    throw new Error(
-      `Schwab chain HTTP ${resp.status}${body ? `: ${body.slice(0, 200)}` : ""}`,
-    );
+    // Drain the body so the connection can be reused, but DO NOT include
+    // it in the thrown message — Schwab error responses can echo header-
+    // adjacent context (token-bearing fragments, internal trace IDs) that
+    // we don't want to leak into logs/Sentry. The status is enough for
+    // operators; if you need the body, log it separately at the call site
+    // with explicit redaction.
+    await resp.text().catch(() => "");
+    throw new Error(`Schwab chain HTTP ${resp.status}`);
   }
 
   const raw = (await resp.json()) as SchwabChainResponse;

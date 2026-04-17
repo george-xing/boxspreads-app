@@ -4,8 +4,33 @@ import {
   verifySessionCookie,
   getSessionSecret,
 } from "@/lib/session";
-import { findConnection, deleteConnection } from "@/lib/schwab/connections";
+import {
+  findConnection,
+  deleteConnection,
+  hasConnection,
+} from "@/lib/schwab/connections";
 import { supabase } from "@/lib/supabase";
+
+/**
+ * Cheap session-only check: cookie valid + Supabase row exists. Does NOT
+ * build a token manager and does NOT refresh against Schwab.
+ *
+ * Use this for the connection-status endpoint that the UI polls on every
+ * page load. The full client factory (`getSchwabClientForRequest`) does a
+ * forced refresh on each call, and when the page mounts two status callers
+ * (Calculator + ConnectStatusSlot) the parallel refresh requests can race —
+ * Schwab rotates the refresh token, the loser hits `invalid_grant`, the
+ * catch deletes the row, and the user is silently logged out despite a
+ * working session. Bypassing the refresh on read-only "are we connected?"
+ * polls eliminates that path entirely.
+ */
+export async function hasActiveSession(req: Request): Promise<boolean> {
+  const cookie = readCookie(req, SESSION_COOKIE_NAME);
+  if (!cookie) return false;
+  const sessionId = verifySessionCookie(cookie, getSessionSecret());
+  if (!sessionId) return false;
+  return hasConnection(sessionId);
+}
 
 /**
  * SchwabSession is what the rest of the app gets back when a request is

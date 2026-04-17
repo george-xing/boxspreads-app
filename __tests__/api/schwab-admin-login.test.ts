@@ -40,10 +40,16 @@ describe("POST /api/schwab/admin/login", () => {
     expect(mockUpsert).not.toHaveBeenCalled();
   });
 
-  it("rejects missing env token", async () => {
+  it("rejects missing env token with the same generic 403 as a wrong key", async () => {
+    // Server-misconfig and wrong-key MUST return identical responses.
+    // Otherwise an attacker can confirm a valid ADMIN_KEY by probing
+    // when SCHWAB_REFRESH_TOKEN is missing (e.g. mid-deploy slot).
     delete process.env.SCHWAB_REFRESH_TOKEN;
     const res = await POST(postWith({ key: "correct-horse-battery-staple" }));
-    expect(res.status).toBe(500);
+    expect(res.status).toBe(403);
+    const body = await res.json();
+    expect(body).toEqual({ error: "forbidden" });
+    expect(mockUpsert).not.toHaveBeenCalled();
   });
 
   it("on valid key, upserts row and sets signed cookie", async () => {

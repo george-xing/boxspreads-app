@@ -2,11 +2,31 @@ import { NextResponse } from "next/server";
 import { getSchwabClientForRequest } from "@/lib/schwab/client";
 import { fetchChainSnapshot } from "@/lib/schwab/chain";
 import { computeCandidates } from "@/lib/schwab/compute-candidates";
+import { SESSION_COOKIE_NAME } from "@/lib/session";
+
+// Clear the session cookie. Used when the chain route discovers the
+// session is dead (refresh token revoked, Supabase row gone) so the
+// browser doesn't keep replaying a stale cookie that triggers another
+// forced refresh on the next request.
+const CLEAR_SESSION_COOKIE = [
+  `${SESSION_COOKIE_NAME}=`,
+  "HttpOnly",
+  "Path=/",
+  "SameSite=Lax",
+  "Max-Age=0",
+  ...(process.env.NODE_ENV === "production" ? ["Secure"] : []),
+].join("; ");
 
 export async function GET(req: Request) {
   const client = await getSchwabClientForRequest(req);
   if (!client) {
-    return NextResponse.json({ error: "not_connected" }, { status: 401 });
+    return NextResponse.json(
+      { error: "not_connected" },
+      {
+        status: 401,
+        headers: { "set-cookie": CLEAR_SESSION_COOKIE },
+      },
+    );
   }
 
   const url = new URL(req.url);
