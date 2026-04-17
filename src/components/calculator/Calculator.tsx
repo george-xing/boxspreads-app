@@ -385,26 +385,21 @@ export function Calculator() {
             disabled={connState === "loading"}
           />
 
-          {/* ── candidates panel ─────────────────────────── */}
-          {isConnected && (
-            <CandidatesPanel
-              state="connected"
-              candidates={chainData?.candidates ?? []}
-              selected={selectedCandidate}
-              onSelect={setSelectedCandidate}
-              reason={chainData?.reason}
-              isAfterHours={chainData?.isAfterHours}
-            />
-          )}
-
-          {/* ── estimate info (disconnected) ─────────────── */}
-          {!isConnected && (
-            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
-              These rates are estimates based on Treasury yields + 30bps spread.
-              Connect Schwab above for real-time option chain data and accurate
-              tradeable rates.
-            </div>
-          )}
+          {/* ── candidates panel (always rendered) ───────── */}
+          {/* The disconnected-state branch of CandidatesPanel reserves ~the */}
+          {/* same vertical space the connected panel occupies, keeping the */}
+          {/* matched-height grid stable across auth states. Previously we */}
+          {/* gated the whole panel on `isConnected`, which let the right */}
+          {/* column collapse ~200px shorter when logged out and starved the */}
+          {/* expiration table of visible rows via useMatchHeight. */}
+          <CandidatesPanel
+            state={isConnected ? "connected" : "disconnected"}
+            candidates={chainData?.candidates ?? []}
+            selected={selectedCandidate}
+            onSelect={setSelectedCandidate}
+            reason={chainData?.reason}
+            isAfterHours={chainData?.isAfterHours}
+          />
 
           {/* ── tax rates ────────────────────────────────── */}
           <div className="border-t border-gray-200 pt-3">

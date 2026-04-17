@@ -20,14 +20,37 @@ function fmtDollars(n: number) {
 
 export function CandidatesPanel({ state, candidates, selected, onSelect, reason, isAfterHours }: Props) {
   if (state === "disconnected") {
-    // Compact note inside the right column. The top-of-page ConnectBanner
-    // already carries the Sign-in CTA, so this is text-only to avoid a
-    // third "Connect Schwab" button on the same screen.
+    // Reserve roughly the same vertical space the connected candidates
+    // panel will occupy, so the right column doesn't grow by 150–250px
+    // when the user signs in. This keeps the matched-height grid stable
+    // across auth states and gives the left-column expiration table enough
+    // room to show 4–5 rows in both states.
+    //
+    // Visual treatment mirrors the connected panel (sky-blue border/bg,
+    // same title placement) to signal "this is where candidates will
+    // render." The top-of-page ConnectBanner still carries the primary
+    // Sign-in CTA, so this block is message-only.
     return (
-      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
-        <span className="font-semibold text-gray-700">Strike candidates</span> populate
-        here once Schwab is connected — ranked by rate, open interest, and
-        bid/ask width.
+      <div className="rounded-xl border border-dashed border-sky-200 bg-sky-50/60 p-4 flex flex-col">
+        <div className="text-[11px] font-semibold uppercase tracking-widest text-sky-700">
+          Candidates · ranked for your size
+        </div>
+        <div className="mt-3 flex flex-1 flex-col items-center justify-center text-center">
+          <div className="text-sm font-semibold text-gray-800">
+            Connect Schwab to see live candidates
+          </div>
+          <div className="mt-2 max-w-xs text-xs leading-relaxed text-gray-600">
+            We&apos;ll rank real strike pairs from your option chain by executable
+            rate, open interest, and bid/ask spread — and hand you a
+            Schwab-pasteable order.
+          </div>
+        </div>
+        <div className="mt-3 grid grid-cols-4 gap-2 text-[10px] font-semibold uppercase tracking-widest text-sky-700/40">
+          <span>Strikes</span>
+          <span className="text-right">Borrow</span>
+          <span className="text-right">Rate</span>
+          <span className="text-right">Min OI</span>
+        </div>
       </div>
     );
   }
