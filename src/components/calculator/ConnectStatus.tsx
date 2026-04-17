@@ -32,44 +32,69 @@ export function ConnectStatus({ connected, asOf, underlyingLast, isAfterHours, o
   const marketClosed = isAfterHours || !isMarketOpen(new Date(now));
 
   if (!connected) {
+    // Phase 1: there's no public Schwab OAuth flow yet (Commercial-tier
+    // approval is still pending). The only entry point that actually works
+    // is the password-form admin login, so the nav surfaces that. Keeps
+    // the "coming soon" disabled-button mystery off the public surface.
     return (
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        className="rounded-md bg-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 cursor-not-allowed"
-        title="Schwab Commercial API approval pending"
+      <a
+        href="/admin"
+        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors"
       >
-        + Connect Schwab · coming soon
-      </button>
+        Sign in
+      </a>
     );
   }
 
+  // Three concerns split into three visual elements (was one chip with
+  // `·`-separated text in mixed colors):
+  //   1. Connection STATUS  — green chip, semantic, leftmost
+  //   2. SPX PRICE          — plain tabular text, neutral, just data
+  //   3. MARKET STATE       — amber chip when closed, muted "23s ago"
+  //                           when open and we have a fresh asOf
+  // The status chip and market chip use ring-1 borders so they read as
+  // discrete pills; the price reads as data, not a state. Only the data
+  // block (price + state + refresh) appears when `underlyingLast` is set,
+  // so the nav (which only passes `connected`) gets just the bare pill.
   return (
-    <div className="flex items-center gap-2 text-xs font-semibold text-green-700">
-      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-3 py-1">
-        <span className="h-1.5 w-1.5 rounded-full bg-green-500" />
+    <div className="flex items-center gap-2.5">
+      <span className="inline-flex items-center gap-1.5 rounded-full bg-green-50 px-2.5 py-0.5 text-[11px] font-semibold text-green-700 ring-1 ring-green-200">
+        <span className="h-1.5 w-1.5 rounded-full bg-green-500" aria-hidden />
         Connected
-        {underlyingLast ? (
-          <span className="text-gray-600 font-normal">
-            · SPX {underlyingLast.toLocaleString("en-US", { maximumFractionDigits: 2 })}
-          </span>
-        ) : null}
-        {marketClosed ? (
-          <span className="text-amber-600 font-normal">· Market Closed</span>
-        ) : asOf ? (
-          <span className="text-gray-400 font-normal">· {relativeAgo(asOf, now)}</span>
-        ) : null}
       </span>
-      {onRefresh ? (
-        <button
-          type="button"
-          onClick={onRefresh}
-          className="text-gray-500 hover:text-gray-900"
-          title="Refresh chain"
-        >
-          ↻
-        </button>
+
+      {underlyingLast ? (
+        <div className="flex items-center gap-2">
+          <span className="text-[11px] font-medium tabular-nums text-gray-700">
+            SPX{" "}
+            <span className="font-semibold text-gray-900">
+              {underlyingLast.toLocaleString("en-US", { maximumFractionDigits: 2 })}
+            </span>
+          </span>
+
+          {marketClosed ? (
+            <span className="inline-flex items-center gap-1 rounded-full bg-amber-50 px-2 py-0.5 text-[11px] font-medium text-amber-700 ring-1 ring-amber-200">
+              <span className="h-1 w-1 rounded-full bg-amber-500" aria-hidden />
+              Market closed
+            </span>
+          ) : asOf ? (
+            <span className="text-[11px] font-normal text-gray-500 tabular-nums">
+              {relativeAgo(asOf, now)}
+            </span>
+          ) : null}
+
+          {onRefresh ? (
+            <button
+              type="button"
+              onClick={onRefresh}
+              className="rounded-full p-1 text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition-colors"
+              title="Refresh chain"
+              aria-label="Refresh chain"
+            >
+              <span className="block leading-none text-xs">↻</span>
+            </button>
+          ) : null}
+        </div>
       ) : null}
     </div>
   );

@@ -1,9 +1,5 @@
 import { supabase } from "@/lib/supabase";
 
-// PostgREST error code for "no rows returned" (Supabase lookup returned empty).
-// This is an expected "not found" case; all OTHER errors are real failures.
-const PG_NOT_FOUND = "PGRST116";
-
 export interface ConnectionRow {
   session_id: string;
   refresh_token: string;
@@ -47,6 +43,12 @@ export async function deleteOtherConnections(keepSessionId: string): Promise<voi
  * broken" (throws). Callers like the client factory treat null as
  * disconnected, but a thrown error should bubble up as a 5xx so transient
  * DB failures aren't silently flattened into a disconnect.
+ *
+ * Uses `.maybeSingle()` rather than `.single()` so a missing row is a
+ * data-level null (no error), not the PGRST116 sentinel. Once RLS is
+ * enabled (TODO: H1), `.single()` would return PGRST116 for both
+ * "no row" AND "RLS denied" — masking misconfigured policies as
+ * "disconnected." `.maybeSingle()` makes the missing-row path explicit.
  */
 export async function findConnection(
   sessionId: string,
@@ -55,13 +57,25 @@ export async function findConnection(
     .from("schwab_connections")
     .select("session_id, refresh_token, connected_at, last_refreshed_at")
     .eq("session_id", sessionId)
-    .single();
-  if (error) {
-    if (error.code === PG_NOT_FOUND) return null;
-    throw new Error(`findConnection: ${error.message}`);
-  }
-  if (!data) return null;
-  return data as ConnectionRow;
+    .maybeSingle();
+  if (error) throw new Error(`findConnection: ${error.message}`);
+  return (data as ConnectionRow | null) ?? null;
+}
+
+/**
+ * Cheap "do we have a row for this session" check. Does NOT touch Schwab,
+ * does NOT refresh tokens. Used by /api/schwab/status so a page-load that
+ * mounts two status callers in parallel cannot race a token refresh and
+ * cause a silent invalid_grant → deleteConnection → spurious logout.
+ */
+export async function hasConnection(sessionId: string): Promise<boolean> {
+  const { data, error } = await supabase
+    .from("schwab_connections")
+    .select("session_id")
+    .eq("session_id", sessionId)
+    .maybeSingle();
+  if (error) throw new Error(`hasConnection: ${error.message}`);
+  return data !== null;
 }
 
 export async function deleteConnection(sessionId: string): Promise<void> {

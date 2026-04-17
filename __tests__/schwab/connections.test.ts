@@ -35,36 +35,39 @@ describe("schwab connections data-access", () => {
   });
 
   it("findConnection returns the row when found", async () => {
-    const single = vi.fn().mockResolvedValue({
+    const maybeSingle = vi.fn().mockResolvedValue({
       data: { session_id: "sess-1", refresh_token: "t" },
       error: null,
     });
     mockFrom.mockReturnValue({
-      select: () => ({ eq: () => ({ single }) }),
+      select: () => ({ eq: () => ({ maybeSingle }) }),
     });
     const row = await findConnection("sess-1");
     expect(row?.refresh_token).toBe("t");
   });
 
-  it("findConnection returns null when not found", async () => {
-    const single = vi.fn().mockResolvedValue({
+  it("findConnection returns null when no row matches", async () => {
+    // .maybeSingle() returns data=null with no error when the row is missing
+    // (this is its whole reason for being — distinguishes 'no row' from
+    // 'RLS denied' by returning a clean null without the PGRST116 sentinel).
+    const maybeSingle = vi.fn().mockResolvedValue({
       data: null,
-      error: { code: "PGRST116" },
+      error: null,
     });
     mockFrom.mockReturnValue({
-      select: () => ({ eq: () => ({ single }) }),
+      select: () => ({ eq: () => ({ maybeSingle }) }),
     });
     const row = await findConnection("missing");
     expect(row).toBeNull();
   });
 
-  it("findConnection throws on non-PGRST116 errors (real DB failure)", async () => {
-    const single = vi.fn().mockResolvedValue({
+  it("findConnection throws on real DB errors (e.g. server shutdown)", async () => {
+    const maybeSingle = vi.fn().mockResolvedValue({
       data: null,
       error: { code: "57P03", message: "server shutdown" },
     });
     mockFrom.mockReturnValue({
-      select: () => ({ eq: () => ({ single }) }),
+      select: () => ({ eq: () => ({ maybeSingle }) }),
     });
     await expect(findConnection("sess-1")).rejects.toThrow(/server shutdown/);
   });

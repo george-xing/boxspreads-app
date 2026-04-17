@@ -20,17 +20,14 @@ function fmtDollars(n: number) {
 
 export function CandidatesPanel({ state, candidates, selected, onSelect, reason, isAfterHours }: Props) {
   if (state === "disconnected") {
+    // Compact note inside the right column. The top-of-page ConnectBanner
+    // already carries the Sign-in CTA, so this is text-only to avoid a
+    // third "Connect Schwab" button on the same screen.
     return (
-      <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-6 text-center">
-        <div className="text-sm font-semibold text-gray-700 mb-1">
-          Strike candidates appear here once connected
-        </div>
-        <div className="text-xs text-gray-500 mb-3 max-w-md mx-auto">
-          We&apos;ll show strike pairs ranked for your target size — rate, real open interest, bid/ask width. Schwab&apos;s option chain is required to find actual tradeable strikes.
-        </div>
-        <button type="button" disabled className="rounded-md bg-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 cursor-not-allowed">
-          + Connect Schwab · coming soon
-        </button>
+      <div className="rounded-lg border border-dashed border-gray-300 bg-gray-50 px-3 py-2.5 text-xs text-gray-600">
+        <span className="font-semibold text-gray-700">Strike candidates</span> populate
+        here once Schwab is connected — ranked by rate, open interest, and
+        bid/ask width.
       </div>
     );
   }

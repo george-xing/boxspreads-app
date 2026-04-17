@@ -29,11 +29,15 @@ describe("CandidatesPanel", () => {
     expect(getByText("5500 / 6500")).toBeTruthy();
   });
 
-  it("renders empty state when state=disconnected", () => {
-    const { getByText } = render(
+  it("renders compact empty-state note when state=disconnected", () => {
+    // The disconnected state is now a small text-only note (no CTA button) —
+    // the top-of-page ConnectBanner already carries the Sign-in action, so
+    // a third "Connect Schwab" button on the same screen was visual noise.
+    const { getByText, queryByRole } = render(
       <CandidatesPanel state="disconnected" candidates={[]} selected={null} onSelect={() => {}} />,
     );
-    expect(getByText(/Strike candidates appear here once connected/i)).toBeTruthy();
+    expect(getByText(/Strike candidates/i)).toBeTruthy();
+    expect(queryByRole("button")).toBeNull();
   });
 
   it("renders thin-liquidity reason", () => {
