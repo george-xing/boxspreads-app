@@ -180,6 +180,42 @@ describe("computeCandidates", () => {
     }
   });
 
+  // Proximity filter — only consider strike pairs within 30% of spot.
+  // Without this, after-hours ranking degenerates to pure rate (spread
+  // penalty muted, liquidity penalty uniform) and surfaces deep-ITM/OTM
+  // pairs whose mark rounding favorably inflates the rate. Real box
+  // traders use near-ATM strikes only — match boxtrades.com convention.
+  it("excludes strike pairs more than 30% away from spot", () => {
+    // Spot = 7000. The 30% band is [4900, 9100]. The pair 1000/2000 is
+    // entirely outside the band; 7000/7500 is inside. Only the in-band
+    // pair should appear in candidates.
+    const ahChain: ChainSnapshot = {
+      underlying: { symbol: "$SPX", last: 7000, mark: 7000 },
+      expiration: "2027-04-16",
+      dte: 364,
+      asOf: "2026-04-17T04:00:00Z",
+      isAfterHours: true,
+      contracts: [
+        // Deep-ITM/OTM pair (should be filtered out).
+        { strike: 1000, type: "CALL", symbol: "SPX 270416C01000000", bid: 6041.0, ask: 6041.0, liveBid: null, liveAsk: null, mark: 6041.0, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+        { strike: 1000, type: "PUT",  symbol: "SPX 270416P01000000", bid:    0.05, ask:    0.05, liveBid: null, liveAsk: null, mark:    0.05, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+        { strike: 2000, type: "CALL", symbol: "SPX 270416C02000000", bid: 5083.0, ask: 5083.0, liveBid: null, liveAsk: null, mark: 5083.0, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+        { strike: 2000, type: "PUT",  symbol: "SPX 270416P02000000", bid:    0.10, ask:    0.10, liveBid: null, liveAsk: null, mark:    0.10, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+        // Near-ATM pair (should remain).
+        { strike: 7000, type: "CALL", symbol: "SPX 270416C07000000", bid:  330.0, ask:  330.0, liveBid: null, liveAsk: null, mark:  330.0, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+        { strike: 7000, type: "PUT",  symbol: "SPX 270416P07000000", bid:  309.0, ask:  309.0, liveBid: null, liveAsk: null, mark:  309.0, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+        { strike: 7500, type: "CALL", symbol: "SPX 270416C07500000", bid:  120.0, ask:  120.0, liveBid: null, liveAsk: null, mark:  120.0, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+        { strike: 7500, type: "PUT",  symbol: "SPX 270416P07500000", bid:  578.5, ask:  578.5, liveBid: null, liveAsk: null, mark:  578.5, openInterest: 0, totalVolume: 100, settlementType: "AM", optionRoot: "SPX" },
+      ],
+    };
+    const result = computeCandidates(ahChain, 200_000);
+    const strikePairs = result.candidates.map(
+      (c) => `${c.lowerStrike}/${c.upperStrike}`,
+    );
+    expect(strikePairs).toContain("7000/7500");
+    expect(strikePairs).not.toContain("1000/2000");
+  });
+
   it("market-open: spreadWidth is the sum of (ask − bid) across legs and contributes to score", () => {
     // chain fixture has isAfterHours: false — ensure normal path is
     // unchanged for the H3 fix.

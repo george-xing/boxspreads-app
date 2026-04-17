@@ -17,6 +17,11 @@ const STRIKE_ROUND = 500;            // Only pair strikes at round-number multip
                                       // exclusively use multiples of 500 (5000, 5500, 6000, …).
                                       // Non-round strikes have wider spreads and no realistic OI for
                                       // 4-leg combos. Matches the boxtrades.com convention.
+const STRIKE_PROXIMITY = 0.30;        // Restrict candidate strikes to ±30% of spot. Real SPX box
+                                      // traders only use near-ATM strikes — deep-ITM/OTM marks
+                                      // are noisy enough that pure-rate after-hours ranking would
+                                      // otherwise surface pathological pairs (e.g. 1000/2000 when
+                                      // spot is $7,041) over realistic ones.
 // NOTE: We intentionally do NOT floor on openInterest. Schwab zeroes OI
 // after hours (the overnight update hasn't run), but totalVolume can be
 // thousands. The per-candidate muting logic (minOI < contracts × 10)
@@ -25,10 +30,19 @@ const STRIKE_ROUND = 500;            // Only pair strikes at round-number multip
 function bucket(chain: ChainSnapshot) {
   const calls = new Map<number, ChainContract>();
   const puts = new Map<number, ChainContract>();
+  // Use mark when present (live or last close), else fall back to last
+  // trade. Either is a fine center for the proximity band — we just need
+  // a stable spot reference, not a tradeable price.
+  const spot = chain.underlying.mark || chain.underlying.last;
+  const minStrike = spot * (1 - STRIKE_PROXIMITY);
+  const maxStrike = spot * (1 + STRIKE_PROXIMITY);
   for (const c of chain.contracts) {
     if (c.optionRoot !== "SPX" || c.settlementType !== "AM") continue;
     // Only keep round-number strikes (multiples of STRIKE_ROUND)
     if (c.strike % STRIKE_ROUND !== 0) continue;
+    // Drop strikes outside the proximity band. spot===0 (no underlying
+    // quote) disables the filter rather than dropping every strike.
+    if (spot > 0 && (c.strike < minStrike || c.strike > maxStrike)) continue;
     if (c.type === "CALL") calls.set(c.strike, c);
     else puts.set(c.strike, c);
   }
