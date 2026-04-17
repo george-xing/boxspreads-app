@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from "react";
+import { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
 import { YieldCurve } from "./YieldCurve";
 import { ExpirationTable } from "./ExpirationTable";
 import type { ExpirationRow } from "./ExpirationTable";
@@ -77,8 +77,13 @@ export function Calculator() {
   const [ratesError, setRatesError] = useState(false);
 
   /* ── layout: match left-panel height to right-panel ───── */
-  const rightPanelRef = useRef<HTMLDivElement>(null);
-  const matchedHeight = useMatchHeight(rightPanelRef);
+  // Callback ref via useState — using a plain useRef here would miss the
+  // initial mount because Calculator gates its real tree behind a
+  // `useSyncExternalStore` mounted flag, so the ref attaches one render
+  // *after* the hook's effect first runs. useState triggers a re-render
+  // when the element mounts, which re-runs useEffect.
+  const [rightPanelEl, setRightPanelEl] = useState<HTMLDivElement | null>(null);
+  const matchedHeight = useMatchHeight(rightPanelEl);
 
   /* ── expirations ──────────────────────────────────────── */
   const [expirations] = useState(() => generateSpxExpirations(new Date()));
@@ -348,7 +353,7 @@ export function Calculator() {
         {/* The `ref` here is the "source of truth" for grid height — the */}
         {/* left panel mirrors this panel's rendered height via useMatchHeight. */}
         <div
-          ref={rightPanelRef}
+          ref={setRightPanelEl}
           className="rounded-xl border border-gray-300 bg-white p-5 space-y-3"
         >
           {/* connection status (connected only) */}
