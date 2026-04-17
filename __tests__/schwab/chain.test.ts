@@ -1,4 +1,12 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
+
+// Pin the market-hours check to always-open in these tests. We want the
+// "after-hours" cases here to fire from the data heuristic (all bid/ask
+// null), not from whatever time the test suite happens to run at.
+vi.mock("@/lib/market-hours", () => ({
+  isMarketOpen: vi.fn(() => true),
+}));
+
 import { fetchChainSnapshot, __resetChainCacheForTests } from "@/lib/schwab/chain";
 import type { SchwabSession } from "@/lib/schwab/client";
 

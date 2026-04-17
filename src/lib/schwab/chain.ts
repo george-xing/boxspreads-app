@@ -1,5 +1,6 @@
 import type { ChainSnapshot, ChainContract } from "@/lib/schwab/types";
 import type { SchwabSession } from "@/lib/schwab/client";
+import { isMarketOpen } from "@/lib/market-hours";
 
 const TTL_MS = 5 * 60 * 1000;
 const SCHWAB_CHAINS_URL = "https://api.schwabapi.com/marketdata/v1/chains";
@@ -101,13 +102,19 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
     }
   }
 
-  // Detect after-hours: if ZERO entries have a real bid+ask (both > 0),
-  // but entries DO exist, markets are closed. Fall back to mark (closing)
-  // prices so the user still sees indicative candidates.
+  // Detect after-hours. Two signals, either triggers:
+  // 1. Time-based: current time is outside 9:30 AM – 4:00 PM ET on a
+  //    weekday. This is the reliable indicator on Schwab (bid/ask stays
+  //    populated after hours with wide spreads, so data-only heuristics
+  //    never trigger for SPX).
+  // 2. Data-based: all contracts have null/zero bid AND null/zero ask.
+  //    Covers edge cases like Schwab blanking a chain during maintenance.
   const hasLiveBidAsk = allEntries.some(
     (e) => e.bid != null && e.ask != null && e.bid > 0 && e.ask > 0,
   );
-  const isAfterHours = allEntries.length > 0 && !hasLiveBidAsk;
+  const isAfterHours =
+    !isMarketOpen() ||
+    (allEntries.length > 0 && !hasLiveBidAsk);
 
   for (const e of allEntries) {
     let bid = e.bid;

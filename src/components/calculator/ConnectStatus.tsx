@@ -1,11 +1,13 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { isMarketOpen } from "@/lib/market-hours";
 
 interface Props {
   connected: boolean;
   asOf?: string;
   underlyingLast?: number;
+  isAfterHours?: boolean;
   onRefresh?: () => void;
 }
 
@@ -16,12 +18,18 @@ function relativeAgo(iso: string, nowMs: number): string {
   return `${Math.floor(diff / 3600)}h ago`;
 }
 
-export function ConnectStatus({ connected, asOf, underlyingLast, onRefresh }: Props) {
+export function ConnectStatus({ connected, asOf, underlyingLast, isAfterHours, onRefresh }: Props) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => {
     const id = setInterval(() => setNow(Date.now()), 10_000);
     return () => clearInterval(id);
   }, []);
+
+  // If the data-based isAfterHours flag isn't set, fall back to a
+  // time-based check. Schwab keeps bid/ask populated after hours (just
+  // with wide spreads), so the normalizer's data-only heuristic rarely
+  // triggers — the time check is the reliable indicator.
+  const marketClosed = isAfterHours || !isMarketOpen(new Date(now));
 
   if (!connected) {
     return (
@@ -47,7 +55,9 @@ export function ConnectStatus({ connected, asOf, underlyingLast, onRefresh }: Pr
             · SPX {underlyingLast.toLocaleString("en-US", { maximumFractionDigits: 2 })}
           </span>
         ) : null}
-        {asOf ? (
+        {marketClosed ? (
+          <span className="text-amber-600 font-normal">· Market Closed</span>
+        ) : asOf ? (
           <span className="text-gray-400 font-normal">· {relativeAgo(asOf, now)}</span>
         ) : null}
       </span>
