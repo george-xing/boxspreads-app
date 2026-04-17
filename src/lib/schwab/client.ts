@@ -8,8 +8,8 @@ import {
   findConnection,
   deleteConnection,
   hasConnection,
+  updateRefreshToken,
 } from "@/lib/schwab/connections";
-import { supabase } from "@/lib/supabase";
 
 /**
  * Cheap session-only check: cookie valid + Supabase row exists. Does NOT
@@ -95,13 +95,12 @@ export async function getSchwabClientForRequest(
     }),
     save: async (tokens) => {
       if (tokens.refreshToken) {
-        await supabase
-          .from("schwab_connections")
-          .update({
-            refresh_token: tokens.refreshToken,
-            last_refreshed_at: new Date().toISOString(),
-          })
-          .eq("session_id", sessionId);
+        // Encrypts before write and uses the service-role admin client.
+        // RLS on `schwab_connections` blocks the anon role entirely, so
+        // the previous direct `.update()` via the anon client would now
+        // silently noop under RLS — and even if it didn't, it would
+        // store the rotated token in plaintext.
+        await updateRefreshToken(sessionId, tokens.refreshToken);
       }
     },
   });

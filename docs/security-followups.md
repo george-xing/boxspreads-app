@@ -4,33 +4,28 @@ Tracked items deferred from the Apr 16 review pass. Each is too large to
 land in the same PR as the dead-code/UX cleanup, but should be planned
 before any non-Phase-1 (i.e. multi-user) deployment.
 
-## H1 — Refresh tokens stored plaintext, anon-key-readable
+## H1 — Refresh tokens stored plaintext, anon-key-readable — DONE
 
-**Files:** `src/lib/supabase.ts`, `supabase/migrations/002_schwab_connections.sql`,
-`src/lib/schwab/connections.ts`, `src/lib/schwab/client.ts`.
+Shipped in `claude/h1-encrypt-refresh-tokens` (see PR description for the
+operator runbook).
 
-The `schwab_connections` table has no row-level security, and the singleton
-Supabase client is built with `NEXT_PUBLIC_SUPABASE_ANON_KEY` — a key shipped
-in the public JS bundle. Anyone can `select * from schwab_connections` via
-PostgREST and exfiltrate the long-lived Schwab refresh token, which grants
-account-level read access until revoked.
-
-**Fix plan:**
-1. Add a server-only Supabase client built from `SUPABASE_SERVICE_ROLE_KEY`
-   (introduce as a new env var; do NOT expose with `NEXT_PUBLIC_`). Use it
-   from every `src/lib/schwab/*` data-access call. The browser-side anon
-   client should only ever touch `treasury_rates` (already public-safe).
-2. Migration: `alter table schwab_connections enable row level security;`
-   plus an explicit no-anon policy. The service-role key bypasses RLS, so
-   server code keeps working.
-3. Envelope-encrypt `refresh_token` before insert. AEAD with a key from
-   `REFRESH_TOKEN_KMS_KEY` (32 raw bytes, base64-encoded env var).
-   Decrypt only inside `findConnection()`. Plan a key-rotation path that
-   stores `key_version` alongside ciphertext.
-
-**Why deferred:** requires a Supabase migration, a new env var in every
-deploy slot, and a one-time data migration to encrypt existing rows. Not
-safe to land alongside a UX cleanup.
+What landed:
+- `src/lib/supabase-admin.ts` — server-only client built from
+  `SUPABASE_SERVICE_ROLE_KEY`. All `src/lib/schwab/*` data-access flows
+  through it. The browser-side anon client (`src/lib/supabase.ts`) is
+  now used only by `treasury_rates`.
+- `supabase/migrations/003_schwab_connections_rls.sql` — enables RLS on
+  `schwab_connections`, adds explicit restrictive `no_anon_access` and
+  `no_authenticated_access` policies, and adds the `key_version` column.
+  Idempotent; safe to run against a Supabase that already has data.
+- `src/lib/schwab/refresh-token-crypto.ts` — AES-256-GCM envelope
+  encryption with sentinel-prefixed (`enc:v<N>:<base64url>`) ciphertext.
+  Key sourced from `REFRESH_TOKEN_KMS_KEY` (32 bytes, base64). Encrypts
+  on upsert / refresh-rotation; decrypts inside `findConnection`.
+  Round-trip + wrong-key + tampered-ciphertext + legacy-passthrough tests.
+- `scripts/encrypt-existing-refresh-tokens.mjs` — idempotent one-shot
+  data migration. Skips already-encrypted rows by sentinel detection.
+  Supports `--dry-run`.
 
 ## H2 — Forced-refresh race (silent logout)
 

@@ -1,10 +1,28 @@
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
-// Mock the supabase module before importing the unit under test.
+// Mock the server-only admin Supabase client. The data-access layer was
+// migrated to `supabase-admin` so anon-key reads can no longer leak
+// refresh tokens (H1).
 const mockFrom = vi.fn();
-vi.mock("@/lib/supabase", () => ({
-  supabase: {
+vi.mock("@/lib/supabase-admin", () => ({
+  supabaseAdmin: {
     from: (table: string) => mockFrom(table),
+  },
+}));
+
+// Stub the crypto module so these tests stay focused on data-access
+// behavior. Round-trip / wrong-key correctness lives in
+// `refresh-token-crypto.test.ts`.
+vi.mock("@/lib/schwab/refresh-token-crypto", () => ({
+  encryptRefreshToken: (plaintext: string) => ({
+    ciphertext: `enc:v1:STUB(${plaintext})`,
+    keyVersion: 1,
+  }),
+  decryptRefreshToken: (value: string) => {
+    // Strip the stubbed wrapper if present, otherwise return as-is
+    // (legacy plaintext path).
+    const m = value.match(/^enc:v1:STUB\((.*)\)$/);
+    return m ? m[1] : value;
   },
 }));
 
@@ -13,6 +31,7 @@ import {
   findConnection,
   deleteConnection,
   deleteOtherConnections,
+  updateRefreshToken,
 } from "@/lib/schwab/connections";
 
 describe("schwab connections data-access", () => {
@@ -20,7 +39,7 @@ describe("schwab connections data-access", () => {
     mockFrom.mockReset();
   });
 
-  it("upsertConnection calls supabase upsert with correct row", async () => {
+  it("upsertConnection encrypts before writing and includes key_version", async () => {
     const upsert = vi.fn().mockResolvedValue({ error: null });
     mockFrom.mockReturnValue({ upsert });
     await upsertConnection("sess-1", "refresh-token-abc");
@@ -28,22 +47,64 @@ describe("schwab connections data-access", () => {
     expect(upsert).toHaveBeenCalledWith(
       expect.objectContaining({
         session_id: "sess-1",
-        refresh_token: "refresh-token-abc",
+        refresh_token: "enc:v1:STUB(refresh-token-abc)",
+        key_version: 1,
       }),
       { onConflict: "session_id" },
     );
   });
 
-  it("findConnection returns the row when found", async () => {
+  it("updateRefreshToken encrypts and stamps last_refreshed_at", async () => {
+    const eq = vi.fn().mockResolvedValue({ error: null });
+    const update = vi.fn().mockReturnValue({ eq });
+    mockFrom.mockReturnValue({ update });
+    await updateRefreshToken("sess-1", "rotated-token");
+    expect(update).toHaveBeenCalledWith(
+      expect.objectContaining({
+        refresh_token: "enc:v1:STUB(rotated-token)",
+        key_version: 1,
+        last_refreshed_at: expect.any(String),
+      }),
+    );
+    expect(eq).toHaveBeenCalledWith("session_id", "sess-1");
+  });
+
+  it("findConnection decrypts the stored ciphertext before returning", async () => {
     const maybeSingle = vi.fn().mockResolvedValue({
-      data: { session_id: "sess-1", refresh_token: "t" },
+      data: {
+        session_id: "sess-1",
+        refresh_token: "enc:v1:STUB(plaintext-token)",
+        key_version: 1,
+        connected_at: "2026-04-15T00:00:00Z",
+        last_refreshed_at: null,
+      },
       error: null,
     });
     mockFrom.mockReturnValue({
       select: () => ({ eq: () => ({ maybeSingle }) }),
     });
     const row = await findConnection("sess-1");
-    expect(row?.refresh_token).toBe("t");
+    expect(row?.refresh_token).toBe("plaintext-token");
+  });
+
+  it("findConnection passes through legacy plaintext rows unchanged", async () => {
+    // Pre-migration rows have no sentinel — they must keep working until
+    // the data-migration script encrypts them.
+    const maybeSingle = vi.fn().mockResolvedValue({
+      data: {
+        session_id: "sess-1",
+        refresh_token: "raw-legacy-token",
+        key_version: null,
+        connected_at: "2026-04-15T00:00:00Z",
+        last_refreshed_at: null,
+      },
+      error: null,
+    });
+    mockFrom.mockReturnValue({
+      select: () => ({ eq: () => ({ maybeSingle }) }),
+    });
+    const row = await findConnection("sess-1");
+    expect(row?.refresh_token).toBe("raw-legacy-token");
   });
 
   it("findConnection returns null when no row matches", async () => {
