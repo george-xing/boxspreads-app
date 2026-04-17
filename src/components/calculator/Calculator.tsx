@@ -118,6 +118,8 @@ export function Calculator() {
   const taxSavings = interestCost * blendedTax;
   const afterTaxCost = interestCost - taxSavings;
 
+  const hasTreasuryRates = Object.keys(treasuryRates).length > 0;
+
   /* ── box rates for yield curve / table ────────────────── */
   const boxRatesMap = useMemo(() => {
     const map: Record<string, number> = {};
@@ -263,10 +265,10 @@ export function Calculator() {
     <div className="space-y-5">
       {/* ── header ───────────────────────────────────────── */}
       <div className="text-center">
-        <h1 className="text-2xl font-bold tracking-tight text-gray-900">
+        <h1 className="text-3xl md:text-4xl font-bold tracking-tight text-gray-900">
           Borrow at near-Treasury rates
         </h1>
-        <p className="mt-1 text-sm text-gray-500">SPX box spread calculator</p>
+        <p className="mt-1.5 text-sm text-gray-500">SPX box spread calculator</p>
       </div>
 
       {/* ── connect banner (disconnected) ────────────────── */}
@@ -293,21 +295,40 @@ export function Calculator() {
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5">
         {/* ── LEFT: yield curve + expiration table ──────── */}
         <div className="rounded-xl border border-gray-300 bg-white p-5 flex flex-col">
-          <div className="min-h-[180px] shrink-0">
-            <YieldCurve
-              expirations={expirations}
-              selectedExpiry={selectedExpiry}
-              onSelect={handleExpiryChange}
-              boxRates={boxRatesMap}
-            />
-          </div>
-          <div className="border-t border-gray-200 pt-3 mt-2 flex-1 min-h-0 flex flex-col">
-            <ExpirationTable
-              rows={tableRows}
-              selectedExpiry={selectedExpiry}
-              onSelect={handleExpiryChange}
-            />
-          </div>
+          {hasTreasuryRates ? (
+            <>
+              <div className="min-h-[180px] shrink-0">
+                <YieldCurve
+                  expirations={expirations}
+                  selectedExpiry={selectedExpiry}
+                  onSelect={handleExpiryChange}
+                  boxRates={boxRatesMap}
+                />
+              </div>
+              <div className="border-t border-gray-200 pt-3 mt-2 flex-1 min-h-0 flex flex-col">
+                <ExpirationTable
+                  rows={tableRows}
+                  selectedExpiry={selectedExpiry}
+                  onSelect={handleExpiryChange}
+                />
+              </div>
+            </>
+          ) : (
+            // No Treasury rates loaded — don't render a fake-looking flat-line
+            // chart. Show an honest empty state instead. The amber ratesError
+            // banner at the top already explains the failure mode.
+            <div className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="text-4xl text-gray-300 mb-3" aria-hidden>—</div>
+              <div className="text-sm font-semibold text-gray-700">
+                Treasury rate data unavailable
+              </div>
+              <div className="mt-1 max-w-sm text-xs text-gray-500">
+                We couldn&apos;t reach the FRED API. Yield-curve estimates are
+                paused until data returns. Connecting Schwab still produces
+                live tradeable rates from the option chain.
+              </div>
+            </div>
+          )}
         </div>
 
         {/* ── RIGHT: configure panel ───────────────────── */}
@@ -408,16 +429,6 @@ export function Calculator() {
           </div>
         </div>
       </div>
-
-      {/* ── disconnected: candidates empty state ─────────── */}
-      {connState === "disconnected" && (
-        <CandidatesPanel
-          state="disconnected"
-          candidates={[]}
-          selected={null}
-          onSelect={() => {}}
-        />
-      )}
 
       {/* ── order section (connected + candidate selected) ─ */}
       {isConnected && selectedCandidate && (

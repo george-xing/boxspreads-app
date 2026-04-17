@@ -32,16 +32,17 @@ export function ConnectStatus({ connected, asOf, underlyingLast, isAfterHours, o
   const marketClosed = isAfterHours || !isMarketOpen(new Date(now));
 
   if (!connected) {
+    // Phase 1: there's no public Schwab OAuth flow yet (Commercial-tier
+    // approval is still pending). The only entry point that actually works
+    // is the password-form admin login, so the nav surfaces that. Keeps
+    // the "coming soon" disabled-button mystery off the public surface.
     return (
-      <button
-        type="button"
-        disabled
-        aria-disabled="true"
-        className="rounded-md bg-gray-200 px-3 py-1.5 text-xs font-semibold text-gray-500 cursor-not-allowed"
-        title="Schwab Commercial API approval pending"
+      <a
+        href="/admin"
+        className="rounded-md border border-gray-300 bg-white px-3 py-1.5 text-xs font-semibold text-gray-700 hover:border-gray-400 hover:bg-gray-50 transition-colors"
       >
-        + Connect Schwab · coming soon
-      </button>
+        Sign in
+      </a>
     );
   }
 
