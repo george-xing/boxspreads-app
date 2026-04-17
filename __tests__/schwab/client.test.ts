@@ -6,13 +6,17 @@ vi.mock("@/lib/session", () => ({
   getSessionSecret: vi.fn(() => "test-secret-at-least-32-chars-long-abcdef"),
 }));
 
-const { mockFind, mockDelete } = vi.hoisted(() => ({
+const { mockFind, mockDelete, mockUpdateRefreshToken, mockHas } = vi.hoisted(() => ({
   mockFind: vi.fn(),
   mockDelete: vi.fn(),
+  mockUpdateRefreshToken: vi.fn(),
+  mockHas: vi.fn(),
 }));
 vi.mock("@/lib/schwab/connections", () => ({
   findConnection: mockFind,
   deleteConnection: mockDelete,
+  hasConnection: mockHas,
+  updateRefreshToken: mockUpdateRefreshToken,
 }));
 
 // ETM stub. `refresh` is what client.ts calls to force an initial refresh;
@@ -32,8 +36,11 @@ vi.mock("@sudowealth/schwab-api", () => ({
   EnhancedTokenManager: FakeETM,
 }));
 
-vi.mock("@/lib/supabase", () => ({
-  supabase: { from: () => ({ update: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }) }) },
+// Server-only admin client — `client.ts` no longer imports the anon
+// `@/lib/supabase` directly. Persistence of rotated refresh tokens now
+// flows through `updateRefreshToken` (mocked above).
+vi.mock("@/lib/supabase-admin", () => ({
+  supabaseAdmin: { from: () => ({ update: () => ({ eq: vi.fn().mockResolvedValue({ error: null }) }) }) },
 }));
 
 import { getSchwabClientForRequest } from "@/lib/schwab/client";
