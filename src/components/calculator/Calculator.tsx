@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
+import { useState, useEffect, useMemo, useCallback, useRef, useSyncExternalStore } from "react";
 import { YieldCurve } from "./YieldCurve";
 import { ExpirationTable } from "./ExpirationTable";
 import type { ExpirationRow } from "./ExpirationTable";
@@ -9,6 +9,7 @@ import { CandidatesPanel } from "./CandidatesPanel";
 import { ConnectBanner } from "./ConnectBanner";
 import { ConnectStatus } from "./ConnectStatus";
 import { TaxRateInputs } from "./TaxRateInputs";
+import { useMatchHeight } from "./useMatchHeight";
 import { Tooltip } from "@/components/ui/Tooltip";
 import { LegTable } from "@/components/order/LegTable";
 import { OrderParams } from "@/components/order/OrderParams";
@@ -74,6 +75,10 @@ export function Calculator() {
   /* ── treasury rates ───────────────────────────────────── */
   const [treasuryRates, setTreasuryRates] = useState<TreasuryRates>({});
   const [ratesError, setRatesError] = useState(false);
+
+  /* ── layout: match left-panel height to right-panel ───── */
+  const rightPanelRef = useRef<HTMLDivElement>(null);
+  const matchedHeight = useMatchHeight(rightPanelRef);
 
   /* ── expirations ──────────────────────────────────────── */
   const [expirations] = useState(() => generateSpxExpirations(new Date()));
@@ -292,9 +297,17 @@ export function Calculator() {
         </div>
       )}
 
-      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5">
+      <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5 items-start">
         {/* ── LEFT: yield curve + expiration table ──────── */}
-        <div className="rounded-xl border border-gray-300 bg-white p-5 flex flex-col">
+        {/* `style={{ height }}` below is set by `useMatchHeight` once the */}
+        {/* right panel has measured — it makes this column exactly as tall */}
+        {/* as the Configure panel so the internal `ExpirationTable` scroll */}
+        {/* engages instead of pushing the page height down. On mobile the */}
+        {/* hook returns `undefined` and we fall back to natural height. */}
+        <div
+          className="rounded-xl border border-gray-300 bg-white p-5 flex flex-col overflow-hidden"
+          style={matchedHeight ? { height: matchedHeight } : undefined}
+        >
           {hasTreasuryRates ? (
             <>
               <div className="min-h-[180px] shrink-0">
@@ -332,7 +345,12 @@ export function Calculator() {
         </div>
 
         {/* ── RIGHT: configure panel ───────────────────── */}
-        <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-3">
+        {/* The `ref` here is the "source of truth" for grid height — the */}
+        {/* left panel mirrors this panel's rendered height via useMatchHeight. */}
+        <div
+          ref={rightPanelRef}
+          className="rounded-xl border border-gray-300 bg-white p-5 space-y-3"
+        >
           {/* connection status (connected only) */}
           {isConnected && (
             <div className="flex items-center justify-between">
