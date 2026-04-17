@@ -79,6 +79,16 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
       const byStrike = byExp[expKey];
       for (const strikeKey of Object.keys(byStrike)) {
         for (const c of byStrike[strikeKey]) {
+          // Codex H3-bis: prefer the first STRICTLY POSITIVE field rather
+          // than nullish-coalesce, which accepts 0 as a valid value.
+          // Schwab occasionally reports `mark: 0` on illiquid strikes
+          // mid-market; treating 0 as "no quote" lets us fall through to
+          // closePrice / last.
+          const markCandidate =
+            (c.mark != null && c.mark > 0) ? c.mark
+            : (c.closePrice != null && c.closePrice > 0) ? c.closePrice
+            : (c.last != null && c.last > 0) ? c.last
+            : null;
           allEntries.push({
             strike: c.strikePrice ?? Number(strikeKey),
             type,
@@ -86,7 +96,7 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
             // Raw Schwab API: "bid"/"ask"/"mark" (not "bidPrice"/"askPrice"/"markPrice").
             bid: c.bid ?? null,
             ask: c.ask ?? null,
-            mark: c.mark ?? c.closePrice ?? c.last ?? null,
+            mark: markCandidate,
             openInterest: c.openInterest ?? 0,
             totalVolume: c.totalVolume ?? 0,
             settlementType:
@@ -113,14 +123,21 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
     (allEntries.length > 0 && !hasLiveBidAsk);
 
   for (const e of allEntries) {
-    let bid = e.bid;
-    let ask = e.ask;
+    // Preserve the raw market quotes for display. Null after-hours when
+    // there's no live two-sided market — UI should render as "—" or
+    // "(closed)". A non-positive raw quote is treated as no quote.
+    const liveBid = e.bid != null && e.bid > 0 ? e.bid : null;
+    const liveAsk = e.ask != null && e.ask > 0 ? e.ask : null;
+
+    let bid: number;
+    let ask: number;
 
     if (isAfterHours) {
       // After-hours: use mark (closing/mid) as synthetic bid=ask so
       // computeCandidates can produce indicative rates. The spread is
-      // zero in this mode, which is fine — we're not pretending there's
-      // a live market.
+      // zero in this mode, which is why the ranker no longer applies a
+      // spread penalty when chain.isAfterHours is true (see
+      // compute-candidates.ts).
       if (e.mark != null && e.mark > 0) {
         bid = e.mark;
         ask = e.mark;
@@ -129,7 +146,9 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
       }
     } else {
       // Market open: require real bid+ask
-      if (bid == null || ask == null || bid <= 0 || ask <= 0) continue;
+      if (liveBid == null || liveAsk == null) continue;
+      bid = liveBid;
+      ask = liveAsk;
     }
 
     contracts.push({
@@ -138,6 +157,8 @@ function normalize(raw: SchwabChainResponse, expiration: string): ChainSnapshot 
       symbol: e.symbol,
       bid,
       ask,
+      liveBid,
+      liveAsk,
       mark: e.mark ?? (bid + ask) / 2,
       openInterest: e.openInterest,
       totalVolume: e.totalVolume,
