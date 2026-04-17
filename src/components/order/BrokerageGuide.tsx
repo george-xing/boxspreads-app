@@ -1,7 +1,4 @@
-import type { Brokerage } from "@/lib/types";
-
 interface BrokerageGuideProps {
-  brokerage: Brokerage;
   expiry: string;
   limitPrice: number;
 }
@@ -55,64 +52,16 @@ function formatExpiry(expiry: string): string {
   });
 }
 
-function IbkrGuide({ expiry, limitPrice }: { expiry: string; limitPrice: number }) {
+export function BrokerageGuide({ expiry, limitPrice }: BrokerageGuideProps) {
   const expiryLabel = formatExpiry(expiry);
   const price = formatPrice(limitPrice);
 
   return (
-    <>
-      <Prerequisites items={[
-        "Options Level 2 or higher (Level 2 includes long box spreads)",
-        "Margin account required",
-        "Portfolio Margin strongly recommended ($110K+ net liquidation) — under Reg T, the margin requirement equals 100% of the spread value (a $100K box locks up $100K in buying power), making the loan pointless for leverage",
-      ]} />
-      <StepList steps={[
-        {
-          step: 1,
-          title: "Open Strategy Builder in TWS or IBKR Desktop",
-          desc: "Go to Trading Tools → Option Chain, then toggle on 'Strategy Builder' at the bottom. This is the recommended approach — it has a built-in 'Box' strategy template. The older SpreadTrader also works but Strategy Builder is faster.",
-        },
-        {
-          step: 2,
-          title: "Enter SPX and set the view",
-          desc: "Type SPX in the symbol field. Set the dropdown to 'PUT/CALLs (Side by Side)' so you can see both calls and puts at each strike.",
-        },
-        {
-          step: 3,
-          title: `Select the ${expiryLabel} expiration`,
-          desc: "Choose your expiration from the selector at the top. Click 'MORE' if it's not shown. Nearer-term dates have better liquidity and tighter fills. Make sure you select SPX (European, AM-settled), NOT SPXW (weekly).",
-        },
-        {
-          step: 4,
-          title: "Select the 'Box' strategy template and click your strikes",
-          desc: "In the Strategy Builder, change the strategy dropdown from 'Custom' to 'Box'. Then click the strikes in the option chain to populate the legs. Use round strike numbers (4000, 5000, 5500) — non-round strikes have near-zero open interest. Wider spreads generally get better implied rates.",
-        },
-        {
-          step: 5,
-          title: "Verify all 4 legs and check the Credit/Debit label",
-          desc: "The order panel will show all 4 legs. The critical check: look at the Credit/Debit label next to the price field. For borrowing (short box), it must say 'Credit' — you receive cash now and owe at expiration. If it says 'Debit', the direction is reversed. Trust the label over your mental model of buy/sell.",
-        },
-        {
-          step: 6,
-          title: `Set limit price to ${price} — NEVER use a market order`,
-          desc: `Enter ${price} as a LMT (limit) order. Market orders on box spreads can cost hundreds in slippage due to wide bid/ask spreads. Start near the midpoint of the combo's bid/ask. Set time-in-force to GTC (Good 'Til Cancelled).`,
-        },
-        {
-          step: 7,
-          title: "Submit and wait for the fill",
-          desc: "Click Submit Order and verify the confirmation shows the correct credit amount. Fills can take minutes to hours. If no fill after 24 hours, lower your credit price by $0.50–1.00 at a time (accept slightly less cash for better fill odds). Don't cancel and re-enter — just modify the existing order.",
-        },
-      ]} />
-    </>
-  );
-}
+    <div>
+      <h3 className="mb-4 text-sm font-bold text-gray-900">
+        Step-by-step: Enter this order on Schwab
+      </h3>
 
-function SchwabGuide({ expiry, limitPrice }: { expiry: string; limitPrice: number }) {
-  const expiryLabel = formatExpiry(expiry);
-  const price = formatPrice(limitPrice);
-
-  return (
-    <>
       <Prerequisites items={[
         "Options Level 3 required ('Short Uncovered') — Level 2 is not sufficient",
         "Minimum $25,000 account value for Level 3",
@@ -156,85 +105,16 @@ function SchwabGuide({ expiry, limitPrice }: { expiry: string; limitPrice: numbe
           desc: "Click Confirm and Send. Review the confirmation dialog carefully — verify the net credit amount and all 4 legs. Fills may take hours. If no fill in 24 hours, lower your credit price by $0.50–1.00 at a time to improve fill odds.",
         },
       ]} />
-    </>
-  );
-}
-
-function FidelityGuide({ expiry, limitPrice }: { expiry: string; limitPrice: number }) {
-  const expiryLabel = formatExpiry(expiry);
-  const price = formatPrice(limitPrice);
-
-  return (
-    <>
-      <Prerequisites items={[
-        "Options Tier 2 required (includes spreads approval)",
-        "Minimum $10,000 net worth, $2,000 margin equity",
-        "Margin account required — short box spreads are NOT allowed in IRAs",
-        "Portfolio Margin recommended — under Reg T, the margin requirement equals 100% of the spread value (a $100K box locks up $100K in buying power). With Portfolio Margin, the requirement is near zero since the position is delta-neutral",
-      ]} />
-      <StepList steps={[
-        {
-          step: 1,
-          title: "Open options trade on Fidelity.com or Fidelity Trader+",
-          desc: "Go to Accounts & Trade → Trade, select Options. You can also use Fidelity Trader+ Desktop (the replacement for Active Trader Pro) — navigate to Tools → Multi-leg Options.",
-        },
-        {
-          step: 2,
-          title: "Enter .SPX and select Custom strategy with 4 legs",
-          desc: "Type .SPX in the symbol field (the leading dot is important — it denotes the index). From the Strategy dropdown, select 'Custom'. If you see only 2 legs, click '4 Legs' to expand. Fidelity does not have a 'Box' preset.",
-        },
-        {
-          step: 3,
-          title: `Select ${expiryLabel} expiration for all 4 legs`,
-          desc: "Set the same expiration for every leg. Use standard SPX monthly options (European, AM-settled). Fidelity lists these separately from SPXW weeklies.",
-        },
-        {
-          step: 4,
-          title: "Configure all 4 legs",
-          desc: "Leg 1: Sell to Open, Call, lower strike. Leg 2: Buy to Open, Call, higher strike. Leg 3: Buy to Open, Put, higher strike. Leg 4: Sell to Open, Put, lower strike. All quantities must match. Double-check each leg — a wrong action turns a riskless box into a naked position.",
-        },
-        {
-          step: 5,
-          title: `Set Net Credit limit price to ${price}`,
-          desc: `Set order type to Limit at ${price} net credit. NEVER use a market order. Set duration to GTC. Fidelity's commission is $0.65/contract — they may not pass through the CBOE proprietary index fee, making total fees lower than other brokerages.`,
-        },
-        {
-          step: 6,
-          title: "Preview, triple-check, and place",
-          desc: "Click Preview. Verify all 4 legs, the net credit amount, and the total fees. Click Place to submit.",
-        },
-        {
-          step: 7,
-          title: "If the order is immediately cancelled",
-          desc: "Some Fidelity orders route through Citadel Securities, which may reject multi-leg box spread orders. If this happens, enter the trade as two separate spreads: (1) a bear call spread and (2) a bull put spread at the same strikes. This introduces slight execution risk but is the known workaround. You can also call Fidelity's trade desk for assistance.",
-        },
-      ]} />
-    </>
-  );
-}
-
-export function BrokerageGuide({ brokerage, expiry, limitPrice }: BrokerageGuideProps) {
-  const label = brokerage === "ibkr" ? "IBKR" : brokerage === "fidelity" ? "Fidelity" : "Schwab";
-
-  return (
-    <div>
-      <h3 className="mb-4 text-sm font-bold text-gray-900">
-        Step-by-step: Enter this order on {label}
-      </h3>
-
-      {brokerage === "ibkr" && <IbkrGuide expiry={expiry} limitPrice={limitPrice} />}
-      {brokerage === "schwab" && <SchwabGuide expiry={expiry} limitPrice={limitPrice} />}
-      {brokerage === "fidelity" && <FidelityGuide expiry={expiry} limitPrice={limitPrice} />}
 
       <div className="mt-5 space-y-3">
         <h3 className="text-sm font-bold text-gray-900">Pre-submit checklist</h3>
         <div className="space-y-1.5 text-sm text-gray-700">
-          <div>☐ All 4 legs match the table above</div>
-          <div>☐ Net effect shows as <span className="text-green-600 font-medium">credit</span> (you receive money)</div>
-          <div>☐ Margin impact is reasonable (near zero for Portfolio Margin)</div>
-          <div>☐ Expiration is standard SPX monthly (European, AM-settled), not SPXW weekly</div>
-          <div>☐ Order type is LMT at the limit price shown above</div>
-          <div>☐ Time in force is GTC</div>
+          <div>&#9744; All 4 legs match the table above</div>
+          <div>&#9744; Net effect shows as <span className="text-green-600 font-medium">credit</span> (you receive money)</div>
+          <div>&#9744; Margin impact is reasonable (near zero for Portfolio Margin)</div>
+          <div>&#9744; Expiration is standard SPX monthly (European, AM-settled), not SPXW weekly</div>
+          <div>&#9744; Order type is LMT at the limit price shown above</div>
+          <div>&#9744; Time in force is GTC</div>
         </div>
         <p className="border-l-2 border-orange-400 pl-3 text-xs text-orange-700">
           <strong>Double-check:</strong> A reversed buy/sell on any leg turns

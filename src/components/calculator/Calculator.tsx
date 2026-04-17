@@ -1,18 +1,19 @@
 "use client";
 
-import { useState, useEffect, useMemo, useSyncExternalStore } from "react";
+import { useState, useEffect, useMemo, useCallback, useSyncExternalStore } from "react";
 import { YieldCurve } from "./YieldCurve";
 import { ExpirationTable } from "./ExpirationTable";
 import type { ExpirationRow } from "./ExpirationTable";
-import { UnifiedCalculator } from "./UnifiedCalculator";
+import { TargetBorrowInput } from "./TargetBorrowInput";
+import { CandidatesPanel } from "./CandidatesPanel";
+import { ConnectBanner } from "./ConnectBanner";
+import { ConnectStatus } from "./ConnectStatus";
 import { TaxRateInputs } from "./TaxRateInputs";
 import { Tooltip } from "@/components/ui/Tooltip";
-import { BrokerageCTA } from "./BrokerageCTA";
 import { LegTable } from "@/components/order/LegTable";
 import { OrderParams } from "@/components/order/OrderParams";
 import { FeeBreakdown } from "@/components/order/FeeBreakdown";
 import { BrokerageGuide } from "@/components/order/BrokerageGuide";
-import { buildBoxLegs } from "@/lib/strikes";
 import {
   calcBoxRateSimple,
   calcBlendedTaxRate,
@@ -21,8 +22,6 @@ import {
   calcAllInRate,
   interpolateTreasuryYield,
   calcMidFromRate,
-  calcRateFromMid,
-  snapPrice,
   snapStrikeWidth,
 } from "@/lib/calc";
 import { generateSpxExpirations } from "@/lib/strikes";
@@ -34,11 +33,13 @@ import {
   LTCG_RATE_FEDERAL,
   SPX_MULTIPLIER,
 } from "@/lib/constants";
-import type { Brokerage, TreasuryRates } from "@/lib/types";
+import type { TreasuryRates } from "@/lib/types";
 import { formatPct, formatDollars } from "@/lib/format";
+import type { Candidate, CandidatesResponse } from "@/lib/schwab/types";
 
-const CURRENT_SPX = 5500;
-const FEES = BROKERAGE_FEES.ibkr;
+type ConnState = "loading" | "connected" | "disconnected";
+
+const FEES = BROKERAGE_FEES.schwab ?? BROKERAGE_FEES.ibkr;
 
 export function Calculator() {
   const mounted = useSyncExternalStore(
@@ -47,66 +48,77 @@ export function Calculator() {
     () => false,
   );
 
-  const [strikeWidth, setStrikeWidth] = useState(2500);
-  const [contracts, setContracts] = useState(1);
+  /* ── connection state ─────────────────────────────────── */
+  const [connState, setConnState] = useState<ConnState>("loading");
+  // `statusError` is a separate signal from `disconnected` — it means the
+  // /status endpoint returned a 503 (operational failure), not that the
+  // user is actually unconnected. We still fall back to the disconnected
+  // UI, but surface a banner so outages don't masquerade as "please
+  // reconnect."
+  const [statusError, setStatusError] = useState(false);
+  const isConnected = connState === "connected";
+
+  /* ── target borrow ────────────────────────────────────── */
+  const [targetBorrow, setTargetBorrow] = useState(500_000);
+
+  /* ── chain / candidates ───────────────────────────────── */
+  const [chainData, setChainData] = useState<CandidatesResponse | null>(null);
+  const [selectedCandidate, setSelectedCandidate] = useState<Candidate | null>(null);
+  const [chainError, setChainError] = useState<string | null>(null);
+  const [refreshKey, setRefreshKey] = useState(0);
+
+  /* ── tax rates ────────────────────────────────────────── */
   const [federalTaxRate, setFederalTaxRate] = useState(DEFAULT_FEDERAL_TAX_RATE);
   const [stateTaxRate, setStateTaxRate] = useState(DEFAULT_STATE_TAX_RATE);
-  const [userMidPrice, setUserMidPrice] = useState<number | null>(null);
-  const [selectedBrokerage, setSelectedBrokerage] = useState<Brokerage | null>(null);
 
+  /* ── treasury rates ───────────────────────────────────── */
   const [treasuryRates, setTreasuryRates] = useState<TreasuryRates>({});
   const [ratesError, setRatesError] = useState(false);
 
+  /* ── expirations ──────────────────────────────────────── */
   const [expirations] = useState(() => generateSpxExpirations(new Date()));
   const [selectedExpiry, setSelectedExpiry] = useState(() => {
     const target = expirations.find((e) => e.dte >= 350) ?? expirations[expirations.length - 1];
     return target?.date ?? expirations[0]?.date ?? "";
   });
 
-  useEffect(() => {
-    fetch("/api/rates/treasury")
-      .then((r) => {
-        if (!r.ok) throw new Error("Failed to fetch");
-        return r.json();
-      })
-      .then((data) => {
-        if (data.error || Object.keys(data).length === 0) {
-          setRatesError(true);
-        } else {
-          setTreasuryRates(data);
-        }
-      })
-      .catch(() => setRatesError(true));
-  }, []);
-
   const selectedExp = expirations.find((e) => e.date === selectedExpiry);
   const dte = selectedExp?.dte ?? 365;
-  const isUserOverride = userMidPrice !== null;
 
+  /* ── derived tax ──────────────────────────────────────── */
   const clampedFederal = Math.max(0, Math.min(1, federalTaxRate));
   const clampedState = Math.max(0, Math.min(1, stateTaxRate));
   const ltcg = clampedFederal <= 0.24 ? 0.15 : LTCG_RATE_FEDERAL;
   const blendedTax = Math.min(1, calcBlendedTaxRate(ltcg, clampedFederal, clampedState));
 
+  /* ── estimated rate (Treasury fallback) ───────────────── */
   const treasuryYield = interpolateTreasuryYield(dte, treasuryRates);
   const estimatedRate = calcBoxRateSimple(treasuryYield, DEFAULT_SPREAD_BPS);
 
-  const snappedWidth = snapStrikeWidth(strikeWidth);
+  /* ── live vs estimated rate ───────────────────────────── */
+  const liveRate = selectedCandidate?.rate ?? estimatedRate;
 
-  const activeMidPrice = userMidPrice ?? calcMidFromRate(estimatedRate, snappedWidth, dte);
-  const activeRate = calcRateFromMid(activeMidPrice, snappedWidth, dte);
-
-  const borrowAmount = activeMidPrice * SPX_MULTIPLIER * contracts;
-  const repayment = snappedWidth * SPX_MULTIPLIER * contracts;
-  const interestCost = Math.abs(repayment - borrowAmount);
-
-  const feeImpact = calcFeeImpact(FEES, contracts, borrowAmount > 0 ? borrowAmount : 1, dte);
-  const allInRate = calcAllInRate(activeRate, feeImpact);
+  /* ── rate calcs ───────────────────────────────────────── */
+  const feeContracts = selectedCandidate?.contracts ?? 1;
+  const feeBorrow = selectedCandidate?.actualBorrow ?? targetBorrow;
+  const feeImpact = calcFeeImpact(FEES, feeContracts, feeBorrow > 0 ? feeBorrow : 1, dte);
+  const allInRate = calcAllInRate(liveRate, feeImpact);
   const afterTaxRate = calcAfterTaxRate(allInRate, blendedTax);
 
+  /* ── summary numbers (use candidate when available) ──── */
+  const snappedWidth = selectedCandidate?.strikeWidth ?? snapStrikeWidth(2500);
+  const activeMidPrice = selectedCandidate
+    ? selectedCandidate.boxCredit
+    : calcMidFromRate(estimatedRate, snappedWidth, dte);
+  const borrowAmount = selectedCandidate
+    ? selectedCandidate.actualBorrow
+    : activeMidPrice * SPX_MULTIPLIER * 1;
+  const repayment = snappedWidth * SPX_MULTIPLIER * feeContracts;
+  const interestCost = Math.abs(repayment - borrowAmount);
   const taxSavings = interestCost * blendedTax;
   const afterTaxCost = interestCost - taxSavings;
 
+  /* ── box rates for yield curve / table ────────────────── */
   const boxRatesMap = useMemo(() => {
     const map: Record<string, number> = {};
     for (const exp of expirations) {
@@ -125,39 +137,117 @@ export function Calculator() {
     }));
   }, [expirations, boxRatesMap]);
 
-  const order = selectedExpiry && snappedWidth > 0 ? (() => {
-    const lower = Math.floor(CURRENT_SPX / 500) * 500;
-    const upper = lower + snappedWidth;
-    const legs = buildBoxLegs(lower, upper, selectedExpiry, "borrow");
-    const limitPrice = calcMidFromRate(activeRate, snappedWidth, dte);
-    return { legs, spreadWidth: snappedWidth, limitPrice, contracts };
-  })() : null;
-
-  function handleStrikeWidthChange(width: number) {
-    setStrikeWidth(width);
-    setUserMidPrice(null);
-  }
-
-  function handleContractsChange(qty: number) {
-    if (qty < 1 || !Number.isFinite(qty)) return;
-    setContracts(Math.round(qty));
-  }
-
+  /* ── handlers ─────────────────────────────────────────── */
   function handleExpiryChange(expiry: string) {
     setSelectedExpiry(expiry);
-    setUserMidPrice(null);
+    setSelectedCandidate(null);
+    setChainData(null);
+    setChainError(null);
   }
 
-  function handleMidPriceChange(mid: number) {
-    const snapped = snapPrice(mid);
-    if (snapped <= 0 || snapped >= snappedWidth) return;
-    setUserMidPrice(snapped);
-  }
+  const handleRefresh = useCallback(() => {
+    setRefreshKey((k) => k + 1);
+  }, []);
 
-  function handleResetEstimate() {
-    setUserMidPrice(null);
-  }
+  /* ── effect: fetch connection status ──────────────────── */
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/schwab/status")
+      .then(async (r) => {
+        if (r.status === 503) {
+          // Operational failure on the server (e.g. Supabase unreachable).
+          // Degrade to disconnected UX but keep a banner up so users know
+          // this isn't a "you're not connected" situation.
+          if (!cancelled) {
+            setStatusError(true);
+            setConnState("disconnected");
+          }
+          return null;
+        }
+        if (!r.ok) throw new Error(`status check failed: ${r.status}`);
+        return r.json();
+      })
+      .then((data) => {
+        if (cancelled || !data) return;
+        setStatusError(false);
+        setConnState(data.connected ? "connected" : "disconnected");
+      })
+      .catch(() => {
+        if (!cancelled) setConnState("disconnected");
+      });
+    return () => { cancelled = true; };
+  }, []);
 
+  /* ── effect: fetch treasury rates ─────────────────────── */
+  useEffect(() => {
+    let cancelled = false;
+    const controller = new AbortController();
+    fetch("/api/rates/treasury", { signal: controller.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error("Failed to fetch");
+        return r.json();
+      })
+      .then((data) => {
+        if (cancelled) return;
+        if (data.error || Object.keys(data).length === 0) {
+          setRatesError(true);
+        } else {
+          setTreasuryRates(data);
+        }
+      })
+      .catch(() => { if (!cancelled) setRatesError(true); });
+    return () => {
+      cancelled = true;
+      controller.abort();
+    };
+  }, []);
+
+  /* ── effect: fetch chain when connected ───────────────── */
+  useEffect(() => {
+    if (connState !== "connected") return;
+    if (!selectedExpiry) return;
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => {
+      setChainError(null);
+      const params = new URLSearchParams({
+        expiration: selectedExpiry,
+        target: String(targetBorrow),
+      });
+      // refreshKey > 0 means the user clicked the nav refresh button; pass
+      // force=1 so the server bypasses its 5-min in-memory cache. Without
+      // this flag the button would be a no-op within the TTL window.
+      if (refreshKey > 0) params.set("force", "1");
+
+      fetch(`/api/schwab/chain?${params}`, { signal: controller.signal })
+        .then((r) => {
+          if (r.status === 401) {
+            setConnState("disconnected");
+            throw new Error("unauthorized");
+          }
+          if (!r.ok) throw new Error(`chain fetch failed: ${r.status}`);
+          return r.json();
+        })
+        .then((data: CandidatesResponse) => {
+          setChainData(data);
+          setSelectedCandidate(data.selected);
+          setChainError(null);
+        })
+        .catch((err) => {
+          if (err.name === "AbortError") return;
+          if (err.message !== "unauthorized") {
+            setChainError(err.message ?? "Failed to fetch chain");
+          }
+        });
+    }, 400); // debounce
+
+    return () => {
+      clearTimeout(timer);
+      controller.abort();
+    };
+  }, [connState, selectedExpiry, targetBorrow, refreshKey]);
+
+  /* ── SSR placeholder ──────────────────────────────────── */
   if (!mounted) {
     return (
       <div className="text-center py-20">
@@ -171,6 +261,7 @@ export function Calculator() {
 
   return (
     <div className="space-y-5">
+      {/* ── header ───────────────────────────────────────── */}
       <div className="text-center">
         <h1 className="text-2xl font-bold tracking-tight text-gray-900">
           Borrow at near-Treasury rates
@@ -178,16 +269,31 @@ export function Calculator() {
         <p className="mt-1 text-sm text-gray-500">SPX box spread calculator</p>
       </div>
 
+      {/* ── connect banner (disconnected) ────────────────── */}
+      {connState === "disconnected" && <ConnectBanner />}
+
+      {statusError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">
+          Temporary problem checking your Schwab connection — please try again in a moment.
+        </div>
+      )}
+
       {ratesError && (
         <div className="rounded-lg border border-amber-300 bg-amber-50 px-3 py-2 text-xs font-medium text-amber-800">
           Using fallback rates — live Treasury data unavailable
         </div>
       )}
 
+      {chainError && (
+        <div className="rounded-lg border border-red-300 bg-red-50 px-3 py-2 text-xs font-medium text-red-800">
+          Chain error: {chainError}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-[2fr_1fr] gap-5">
-        {/* LEFT */}
+        {/* ── LEFT: yield curve + expiration table ──────── */}
         <div className="rounded-xl border border-gray-300 bg-white p-5 flex flex-col">
-          <div className="flex-1 min-h-[200px]">
+          <div className="min-h-[180px] shrink-0">
             <YieldCurve
               expirations={expirations}
               selectedExpiry={selectedExpiry}
@@ -195,7 +301,7 @@ export function Calculator() {
               boxRates={boxRatesMap}
             />
           </div>
-          <div className="border-t border-gray-200 pt-3 mt-3">
+          <div className="border-t border-gray-200 pt-3 mt-2 flex-1 min-h-0 flex flex-col">
             <ExpirationTable
               rows={tableRows}
               selectedExpiry={selectedExpiry}
@@ -204,8 +310,20 @@ export function Calculator() {
           </div>
         </div>
 
-        {/* RIGHT */}
+        {/* ── RIGHT: configure panel ───────────────────── */}
         <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-3">
+          {/* connection status (connected only) */}
+          {isConnected && (
+            <div className="flex items-center justify-between">
+              <ConnectStatus
+                connected
+                asOf={chainData?.asOf}
+                underlyingLast={chainData?.underlying.last}
+                onRefresh={handleRefresh}
+              />
+            </div>
+          )}
+
           <div className="text-[11px] font-semibold uppercase tracking-widest text-gray-500">Configure</div>
 
           <div className="flex items-center justify-between">
@@ -216,24 +334,35 @@ export function Calculator() {
             </span>
           </div>
 
-          <UnifiedCalculator
-            strikeWidth={strikeWidth}
-            onStrikeWidthChange={handleStrikeWidthChange}
-            midPrice={activeMidPrice}
-            onMidPriceChange={handleMidPriceChange}
-            isUserOverride={isUserOverride}
-            onResetEstimate={handleResetEstimate}
-            contracts={contracts}
-            onContractsChange={handleContractsChange}
+          {/* target borrow input (replaces UnifiedCalculator) */}
+          <TargetBorrowInput
+            value={targetBorrow}
+            onChange={setTargetBorrow}
+            disabled={connState === "loading"}
           />
 
-          <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
-            {isUserOverride
-              ? "Rates reflect your entered mid price."
-              : "These rates are estimates based on Treasury yields + 30bps spread. To get your actual rate: build the 4-leg order in your brokerage using the guide below \u2014 the order preview will show the net credit per contract. Enter that as the mid price above."
-            }
-          </div>
+          {/* ── candidates panel ─────────────────────────── */}
+          {isConnected && (
+            <CandidatesPanel
+              state="connected"
+              candidates={chainData?.candidates ?? []}
+              selected={selectedCandidate}
+              onSelect={setSelectedCandidate}
+              reason={chainData?.reason}
+              isAfterHours={chainData?.isAfterHours}
+            />
+          )}
 
+          {/* ── estimate info (disconnected) ─────────────── */}
+          {!isConnected && (
+            <div className="rounded-lg border border-blue-200 bg-blue-50 px-3 py-2.5 text-xs text-blue-700">
+              These rates are estimates based on Treasury yields + 30bps spread.
+              Connect Schwab above for real-time option chain data and accurate
+              tradeable rates.
+            </div>
+          )}
+
+          {/* ── tax rates ────────────────────────────────── */}
           <div className="border-t border-gray-200 pt-3">
             <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Tax rates</div>
             <TaxRateInputs
@@ -244,8 +373,11 @@ export function Calculator() {
             />
           </div>
 
+          {/* ── rates display ────────────────────────────── */}
           <div className="border-t border-gray-200 pt-3">
-            <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Rates</div>
+            <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">
+              {isConnected && selectedCandidate ? "Live rates" : "Estimated rates"}
+            </div>
             <div className="space-y-2">
               <div className="flex items-center justify-between">
                 <span className="text-sm font-medium text-gray-600">Pre-tax rate</span>
@@ -257,6 +389,7 @@ export function Calculator() {
               </div>
             </div>
 
+            {/* ── summary ────────────────────────────────── */}
             <div className="border-t border-gray-200 pt-3 mt-3">
               <div className="mb-2 text-[11px] font-semibold uppercase tracking-widest text-gray-500">Summary</div>
               <div className="text-[13px] text-gray-700 leading-relaxed">
@@ -276,27 +409,36 @@ export function Calculator() {
         </div>
       </div>
 
-      {order && (
+      {/* ── disconnected: candidates empty state ─────────── */}
+      {connState === "disconnected" && (
+        <CandidatesPanel
+          state="disconnected"
+          candidates={[]}
+          selected={null}
+          onSelect={() => {}}
+        />
+      )}
+
+      {/* ── order section (connected + candidate selected) ─ */}
+      {isConnected && selectedCandidate && (
         <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-4">
           <div className="flex items-center gap-2">
             <h2 className="text-base font-bold text-gray-900">Your Order</h2>
-            <Tooltip content={`These strikes are illustrative, based on SPX ~${CURRENT_SPX.toLocaleString()}. When entering your order, check your brokerage's option chain for strikes with high open interest near the current SPX level. Use round numbers (e.g. 5000, 5500, 6000). The rate is the same regardless of strikes — only liquidity differs.`} />
+            <Tooltip content="These strikes and prices come from the live Schwab option chain. The order below matches your selected candidate." />
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-5">
-            <div><LegTable legs={order.legs} expiry={selectedExpiry} /></div>
-            <div>
+          <div className="grid grid-cols-1 md:grid-cols-[3fr_2fr] gap-5">
+            <div><LegTable liveLegs={selectedCandidate.legs} expiry={selectedExpiry} /></div>
+            <div className="space-y-4">
               <OrderParams
-                spreadWidth={order.spreadWidth}
-                limitPrice={order.limitPrice}
-                contracts={order.contracts}
+                spreadWidth={selectedCandidate.strikeWidth}
+                limitPrice={selectedCandidate.boxCredit}
+                contracts={selectedCandidate.contracts}
               />
-            </div>
-            <div>
               <FeeBreakdown
                 fees={FEES}
-                contracts={order.contracts}
-                borrowAmount={order.limitPrice * SPX_MULTIPLIER * order.contracts}
+                contracts={selectedCandidate.contracts}
+                borrowAmount={selectedCandidate.actualBorrow}
                 dte={dte}
               />
             </div>
@@ -304,19 +446,15 @@ export function Calculator() {
         </div>
       )}
 
-      <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-4">
-        <BrokerageCTA selected={selectedBrokerage} onSelect={setSelectedBrokerage} />
-
-        {selectedBrokerage && order && (
-          <div className="border-t border-gray-200 pt-4">
-            <BrokerageGuide
-              brokerage={selectedBrokerage}
-              expiry={selectedExpiry}
-              limitPrice={order.limitPrice}
-            />
-          </div>
-        )}
-      </div>
+      {/* ── brokerage guide (connected + candidate) ──────── */}
+      {isConnected && selectedCandidate && (
+        <div className="rounded-xl border border-gray-300 bg-white p-5 space-y-4">
+          <BrokerageGuide
+            expiry={selectedExpiry}
+            limitPrice={selectedCandidate.boxCredit}
+          />
+        </div>
+      )}
     </div>
   );
 }

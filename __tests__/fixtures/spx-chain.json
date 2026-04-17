@@ -1,0 +1,19 @@
+{
+  "underlying": { "symbol": "$SPX", "last": 5782.10, "mark": 5782.10 },
+  "expiration": "2027-02-19",
+  "dte": 301,
+  "asOf": "2026-04-15T18:30:00Z",
+  "isAfterHours": false,
+  "contracts": [
+    { "strike": 5000, "type": "CALL", "symbol": "SPX 270219C05000000", "bid": 845.10, "ask": 846.40, "mark": 845.75, "openInterest": 900, "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 5000, "type": "PUT",  "symbol": "SPX 270219P05000000", "bid":  55.00, "ask":  55.90, "mark":  55.45, "openInterest": 910, "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 5500, "type": "CALL", "symbol": "SPX 270219C05500000", "bid": 300.10, "ask": 300.80, "mark": 300.45, "openInterest": 1240, "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 5500, "type": "PUT",  "symbol": "SPX 270219P05500000", "bid":  44.00, "ask":  44.60, "mark":  44.30, "openInterest": 1250, "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 6000, "type": "CALL", "symbol": "SPX 270219C06000000", "bid":  90.00, "ask":  90.70, "mark":  90.35, "openInterest": 890,  "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 6000, "type": "PUT",  "symbol": "SPX 270219P06000000", "bid": 290.00, "ask": 290.70, "mark": 290.35, "openInterest": 900,  "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 6500, "type": "CALL", "symbol": "SPX 270219C06500000", "bid":   5.50, "ask":   5.90, "mark":   5.70, "openInterest": 1240, "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 6500, "type": "PUT",  "symbol": "SPX 270219P06500000", "bid": 997.80, "ask": 999.10, "mark": 998.45, "openInterest": 1300, "settlementType": "AM", "optionRoot": "SPX" },
+    { "strike": 5500, "type": "CALL", "symbol": "SPXW 270219C05500000", "bid": 300.00, "ask": 300.90, "mark": 300.45, "openInterest": 80, "settlementType": "PM", "optionRoot": "SPXW" },
+    { "strike": 5500, "type": "PUT",  "symbol": "SPXW 270219P05500000", "bid":  44.00, "ask":  44.80, "mark":  44.40, "openInterest": 80, "settlementType": "PM", "optionRoot": "SPXW" }
+  ]
+}
