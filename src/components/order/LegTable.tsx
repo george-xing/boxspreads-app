@@ -50,8 +50,16 @@ export function LegTable({ legs, liveLegs, expiry }: LegTableProps) {
                 {leg.action}
               </span>
             </div>
-            <div className="text-right text-sm tabular-nums text-gray-700">{leg.bid.toFixed(2)}</div>
-            <div className="text-right text-sm tabular-nums text-gray-700">{leg.ask.toFixed(2)}</div>
+            {/* Show real market quotes (liveBid/liveAsk). After-hours
+                these are null because no two-sided market exists; render
+                an em-dash so the user can tell synthesized vs real
+                without staring at suspiciously identical bid/ask values. */}
+            <div className="text-right text-sm tabular-nums text-gray-700">
+              {leg.liveBid != null ? leg.liveBid.toFixed(2) : "—"}
+            </div>
+            <div className="text-right text-sm tabular-nums text-gray-700">
+              {leg.liveAsk != null ? leg.liveAsk.toFixed(2) : "—"}
+            </div>
           </div>
         ))}
       </div>

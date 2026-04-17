@@ -156,9 +156,53 @@ describe("fetchChainSnapshot", () => {
     const snap = await fetchChainSnapshot(makeSession({ n: 0 }), "2027-02-19");
     expect(snap.isAfterHours).toBe(true);
     expect(snap.contracts.length).toBe(1);
-    // mark used as both bid and ask
+    // mark used as both synthesized bid and ask (for ranker)
     expect(snap.contracts[0].bid).toBe(300);
     expect(snap.contracts[0].ask).toBe(300);
+    // but real market quotes are null — there was no live two-sided market
+    expect(snap.contracts[0].liveBid).toBeNull();
+    expect(snap.contracts[0].liveAsk).toBeNull();
+  });
+
+  it("preserves liveBid/liveAsk separately from synthesized bid/ask during market hours", async () => {
+    mockFetch(makeRawResponse);
+
+    const snap = await fetchChainSnapshot(makeSession({ n: 0 }), "2027-02-19");
+    expect(snap.isAfterHours).toBe(false);
+    const c = snap.contracts.find((x) => x.type === "CALL")!;
+    // Market open: bid/ask AND liveBid/liveAsk should both reflect the
+    // real quote. They diverge only after-hours.
+    expect(c.bid).toBe(300.1);
+    expect(c.ask).toBe(300.8);
+    expect(c.liveBid).toBe(300.1);
+    expect(c.liveAsk).toBe(300.8);
+  });
+
+  it("falls through to closePrice when mark is 0 (Codex H3-bis)", async () => {
+    // Codex flagged that `c.mark ?? c.closePrice ?? c.last` accepts a
+    // literal 0 as if it were a real quote. Verify the new positive-
+    // value check falls through to closePrice instead.
+    mockFetch(() => ({
+      underlying: { symbol: "$SPX", last: 5782, mark: 5782 },
+      callExpDateMap: {
+        "2027-02-19:301": {
+          "5500.0": [{
+            symbol: "SPX 270219C05500000",
+            strikePrice: 5500,
+            mark: 0,            // bogus — should be ignored
+            closePrice: 299.8,  // real previous-session close
+            openInterest: 1000,
+            settlementType: "A",
+            optionRoot: "SPX",
+          }],
+        },
+      },
+      putExpDateMap: {},
+    }));
+
+    const snap = await fetchChainSnapshot(makeSession({ n: 0 }), "2027-02-19");
+    expect(snap.contracts.length).toBe(1);
+    expect(snap.contracts[0].mark).toBe(299.8);
   });
 
   it("skips contracts with no bid/ask AND no mark (truly no data)", async () => {

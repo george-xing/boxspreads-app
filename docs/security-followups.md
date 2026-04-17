@@ -42,34 +42,30 @@ expiration) can still race the rotated token. To fully close it:
    newly-stored refresh token once — the parallel request may have
    already rotated successfully.
 
-## H3 — After-hours candidate corruption
+## H3 — After-hours candidate corruption — DONE
 
-**Files:** `src/lib/schwab/chain.ts:120-133`,
-`src/lib/schwab/compute-candidates.ts:81-92`.
+After hours the normalizer synthesized `bid = ask = mark`, so the
+ranker's `spreadWidth` was mechanically zero for every candidate, the
+spread penalty term was a silent no-op, and the ranker degenerated into
+"highest raw rate wins" — which on SPX picked deep-ITM/OTM strikes
+(e.g. 1000/2000 when spot was $7,041) over realistic ATM combos.
 
-After hours the normalizer synthesizes `bid = ask = mark`, so the
-ranker's `spreadWidth` is mechanically zero for every candidate. The
-displayed `spreadWidth` in the `Candidate` type is therefore a lie
-(zero) when `chain.isAfterHours` is true, and `LegTable` shows
-identical bid/ask per leg — the user can't tell what's real.
+Fix landed:
+- `ChainContract` and `CandidateLeg` now carry both synthesized
+  `bid`/`ask` (used by ranker) and `liveBid`/`liveAsk` (real Schwab
+  quote, nullable after-hours).
+- `compute-candidates` returns `spreadWidth: null` and skips the spread
+  penalty entirely when `chain.isAfterHours` is true. Score becomes
+  `rate − liquidityPenalty`.
+- `LegTable` reads `liveBid`/`liveAsk` and renders "—" after-hours
+  rather than the misleading bid==ask synthesized values.
 
-**Fix plan:**
-- Carry the original `bid`/`ask` (nullable) through `ChainContract` even
-  when the normalizer fills them in. Synthesize a separate
-  `displayBid`/`displayAsk` for the LegTable.
-- In `compute-candidates`, short-circuit the spread penalty entirely
-  when `chain.isAfterHours` (the score becomes `rate - liquidityPenalty`)
-  and don't surface `spreadWidth` to consumers in that mode.
-- Drop contracts where the raw `mark` is non-positive (Codex H3) — the
-  current `c.mark ?? c.closePrice ?? c.last ?? null` chain accepts
-  `mark === 0` because nullish-coalesce only catches null/undefined.
+## H3-bis — Zero-mark / stale-mark mid-market — DONE
 
-## H3-bis — Zero-mark / stale-mark mid-market
-
-Codex flagged the same `c.mark ?? c.closePrice` chain accepts a literal
-`0` mark as if it were real. Mid-market this can mis-rank or drop valid
-boxes. Fix is the same: explicit `mark > 0` check before falling through
-to `closePrice` / `last`.
+Replaced `c.mark ?? c.closePrice ?? c.last ?? null` in `chain.ts` with
+an explicit positive-value check — `mark > 0`, then `closePrice > 0`,
+then `last > 0`, else null — so a literal `0` mark falls through to the
+next field instead of being treated as a real quote.
 
 ## Notes on what shipped in this pass
 

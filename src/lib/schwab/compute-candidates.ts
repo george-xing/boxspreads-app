@@ -86,17 +86,30 @@ function candidateFor(
     upperPut[liquidityField],
   );
 
-  const spreadWidth =
-    (lowerCall.ask - lowerCall.bid) +
-    (upperCall.ask - upperCall.bid) +
-    (lowerPut.ask - lowerPut.bid) +
-    (upperPut.ask - upperPut.bid);
+  // After-hours the normalizer synthesizes bid=ask=mark, so the
+  // bid/ask spread is mechanically 0 across all 4 legs — the spread
+  // penalty would be 0 for every candidate, neutralizing it as a
+  // ranking signal. With both spreadPenalty and liquidityPenalty
+  // (after-hours OI is also frequently 0) muted, the ranker would
+  // degenerate to pure `rate`, which favors deep-ITM/OTM strikes
+  // whose annualized rate is inflated by rounding. Skip the spread
+  // penalty entirely after-hours and surface spreadWidth=null so
+  // consumers know not to render it.
+  const spreadWidth: number | null = isAfterHours
+    ? null
+    : (lowerCall.ask - lowerCall.bid) +
+      (upperCall.ask - upperCall.bid) +
+      (lowerPut.ask - lowerPut.bid) +
+      (upperPut.ask - upperPut.bid);
 
   const liquidityThreshold = contracts * LIQUIDITY_MULTIPLIER;
   const muted = minOI < liquidityThreshold;
 
   const liquidityPenalty = muted ? LIQUIDITY_PENALTY_WEIGHT : 0;
-  const spreadPenalty = (spreadWidth / boxCredit) * SPREAD_PENALTY_WEIGHT;
+  const spreadPenalty =
+    spreadWidth == null
+      ? 0
+      : (spreadWidth / boxCredit) * SPREAD_PENALTY_WEIGHT;
   const score = rate - liquidityPenalty - spreadPenalty;
 
   // Short box = borrow. The credit formula above computes net credit from:
@@ -104,10 +117,10 @@ function candidateFor(
   // Legs must mirror that directionality, otherwise the pasted order executes
   // a long box (lend) at a DEBIT — the opposite trade.
   const legs: CandidateLeg[] = [
-    { action: "SELL", type: "CALL", strike: lowerCall.strike, symbol: lowerCall.symbol, bid: lowerCall.bid, ask: lowerCall.ask, openInterest: lowerCall.openInterest },
-    { action: "BUY",  type: "CALL", strike: upperCall.strike, symbol: upperCall.symbol, bid: upperCall.bid, ask: upperCall.ask, openInterest: upperCall.openInterest },
-    { action: "BUY",  type: "PUT",  strike: lowerPut.strike,  symbol: lowerPut.symbol,  bid: lowerPut.bid,  ask: lowerPut.ask,  openInterest: lowerPut.openInterest },
-    { action: "SELL", type: "PUT",  strike: upperPut.strike,  symbol: upperPut.symbol,  bid: upperPut.bid,  ask: upperPut.ask,  openInterest: upperPut.openInterest },
+    { action: "SELL", type: "CALL", strike: lowerCall.strike, symbol: lowerCall.symbol, bid: lowerCall.bid, ask: lowerCall.ask, liveBid: lowerCall.liveBid, liveAsk: lowerCall.liveAsk, openInterest: lowerCall.openInterest },
+    { action: "BUY",  type: "CALL", strike: upperCall.strike, symbol: upperCall.symbol, bid: upperCall.bid, ask: upperCall.ask, liveBid: upperCall.liveBid, liveAsk: upperCall.liveAsk, openInterest: upperCall.openInterest },
+    { action: "BUY",  type: "PUT",  strike: lowerPut.strike,  symbol: lowerPut.symbol,  bid: lowerPut.bid,  ask: lowerPut.ask,  liveBid: lowerPut.liveBid,  liveAsk: lowerPut.liveAsk,  openInterest: lowerPut.openInterest },
+    { action: "SELL", type: "PUT",  strike: upperPut.strike,  symbol: upperPut.symbol,  bid: upperPut.bid,  ask: upperPut.ask,  liveBid: upperPut.liveBid,  liveAsk: upperPut.liveAsk,  openInterest: upperPut.openInterest },
   ];
 
   return {

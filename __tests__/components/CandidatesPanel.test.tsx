@@ -4,10 +4,10 @@ import { CandidatesPanel } from "@/components/calculator/CandidatesPanel";
 import type { Candidate } from "@/lib/schwab/types";
 
 const baseLegs = [
-  { action: "BUY" as const, type: "CALL" as const, strike: 5500, symbol: "SPX 270219C05500000", bid: 300.1, ask: 300.8, openInterest: 1240 },
-  { action: "SELL" as const, type: "CALL" as const, strike: 6500, symbol: "SPX 270219C06500000", bid:   5.5, ask:   5.9, openInterest: 1240 },
-  { action: "SELL" as const, type: "PUT"  as const, strike: 5500, symbol: "SPX 270219P05500000", bid:  44.0, ask:  44.6, openInterest: 1250 },
-  { action: "BUY" as const, type: "PUT"  as const, strike: 6500, symbol: "SPX 270219P06500000", bid: 997.8, ask: 999.1, openInterest: 1300 },
+  { action: "BUY" as const, type: "CALL" as const, strike: 5500, symbol: "SPX 270219C05500000", bid: 300.1, ask: 300.8, liveBid: 300.1, liveAsk: 300.8, openInterest: 1240 },
+  { action: "SELL" as const, type: "CALL" as const, strike: 6500, symbol: "SPX 270219C06500000", bid:   5.5, ask:   5.9, liveBid:   5.5, liveAsk:   5.9, openInterest: 1240 },
+  { action: "SELL" as const, type: "PUT"  as const, strike: 5500, symbol: "SPX 270219P05500000", bid:  44.0, ask:  44.6, liveBid:  44.0, liveAsk:  44.6, openInterest: 1250 },
+  { action: "BUY" as const, type: "PUT"  as const, strike: 6500, symbol: "SPX 270219P06500000", bid: 997.8, ask: 999.1, liveBid: 997.8, liveAsk: 999.1, openInterest: 1300 },
 ];
 
 const cand: Candidate = {
